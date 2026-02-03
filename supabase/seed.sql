@@ -6,7 +6,7 @@ values
   (
     'PMEGP',
     'subsidy',
-    '{"business_types":["micro","small"],"states":["*"],"turnover_max":10000000,"company_age_max_years":3}'::jsonb,
+    '{"business_types":["micro","small"],"states":["*"],"turnover_max":100,"company_age_max_years":3}'::jsonb,
     'Credit-linked capital subsidy for micro enterprises. Margin money assistance.',
     null,
     'Up to 25% margin money subsidy',
@@ -16,7 +16,7 @@ values
   (
     'MUDRA Shishu',
     'loan',
-    '{"business_types":["micro"],"turnover_max":500000}'::jsonb,
+    '{"business_types":["micro"],"turnover_max":5}'::jsonb,
     'Loans up to Rs 50,000 for small businesses.',
     null,
     'Up to ₹50,000',
