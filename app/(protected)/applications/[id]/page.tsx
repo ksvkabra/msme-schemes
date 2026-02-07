@@ -3,11 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 const TRACKER_STEPS = [
-  { key: "eligibility", label: "Eligibility confirmed", description: "Your profile matches this scheme." },
-  { key: "documents", label: "Documents submitted", description: "Application and documents sent for review." },
-  { key: "review", label: "Bank review", description: "Bank or agency is reviewing your application." },
-  { key: "approval", label: "Approval", description: "Application approved." },
-  { key: "disbursal", label: "Disbursal", description: "Funds released to your account." },
+  { key: "eligibility", label: "Eligibility confirmed", description: "Your profile matches this scheme.", owner: "System" as const },
+  { key: "documents", label: "Documents submitted", description: "Application and documents sent for review.", owner: "You" as const },
+  { key: "review", label: "Bank review", description: "Bank or agency is reviewing your application.", owner: "Bank" as const },
+  { key: "approval", label: "Approval", description: "Application approved.", owner: "Bank" as const },
+  { key: "disbursal", label: "Disbursal", description: "Funds released to your account.", owner: "Bank" as const },
 ] as const;
 
 function statusToStep(status: string): number {
@@ -135,6 +135,9 @@ export default async function ApplicationTrackerPage({
                     </p>
                     <p className="mt-0.5 text-sm text-[var(--muted)]">
                       {step.description}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      Owner: {step.owner}
                     </p>
                   </div>
                 </li>

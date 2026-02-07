@@ -3,6 +3,8 @@
 export type BusinessType = "micro" | "small" | "medium" | "startup";
 export type ApplicationStatus = "draft" | "submitted" | "under_review" | "approved" | "rejected";
 
+export type FundingType = "loan" | "subsidy" | "grant";
+
 export interface EligibilityRules {
   business_types?: BusinessType[];
   industries?: string[];
@@ -11,6 +13,7 @@ export interface EligibilityRules {
   turnover_max?: number;
   company_age_min_years?: number;
   company_age_max_years?: number;
+  funding_types?: FundingType[];
   [key: string]: unknown;
 }
 

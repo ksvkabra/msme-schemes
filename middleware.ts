@@ -1,11 +1,16 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isAdminEmail } from '@/lib/admin';
 
 const protectedPaths = ['/dashboard', '/applications', '/schemes', '/help'];
+const adminPaths = ['/admin'];
 const authPaths = ['/login', '/signup'];
 
 function isProtected(pathname: string) {
   return protectedPaths.some((p) => pathname.startsWith(p));
+}
+function isAdminPath(pathname: string) {
+  return adminPaths.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 function isAuthPath(pathname: string) {
   return authPaths.some((p) => pathname === p || pathname.startsWith(p + '/'));
@@ -46,7 +51,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    if (isAuthPath(pathname) && user) {
+    if (isAdminPath(pathname)) {
+      if (!user) {
+        url.pathname = '/login';
+        url.searchParams.set('next', pathname);
+        return NextResponse.redirect(url);
+      }
+      if (!isAdminEmail(user.email)) {
+        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+      }
+    }
+
+    if ((isAuthPath(pathname) || pathname === '/eligibility') && user) {
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
     }

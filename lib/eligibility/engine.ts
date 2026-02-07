@@ -87,6 +87,14 @@ export function evaluateEligibility(
     }
   }
 
+  if (rules.funding_types?.length && profile.funding_goal && profile.funding_goal !== "any") {
+    const ok = rules.funding_types.includes(profile.funding_goal as "loan" | "subsidy" | "grant");
+    if (!ok) {
+      missing.push(`Funding goal must be one of: ${rules.funding_types.join(", ")}`);
+      score -= 15;
+    }
+  }
+
   const finalScore = Math.max(0, score);
   return {
     eligible: missing.length === 0,

@@ -34,25 +34,99 @@ export default function LandingPage() {
             Startups and MSMEs: answer a few questions and get a clear list of
             schemes that match your business — no jargon, no guesswork.
           </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <div className="mt-10">
             <Link
-              href="/login?next=/dashboard/onboarding"
-              className="inline-flex w-full items-center justify-center rounded-lg bg-[var(--primary)] px-6 py-3.5 text-base font-semibold text-[var(--primary-foreground)] shadow-sm hover:bg-[var(--primary-hover)] sm:w-auto"
+              href="/eligibility"
+              className="inline-flex items-center justify-center rounded-lg bg-[var(--primary)] px-8 py-4 text-base font-semibold text-[var(--primary-foreground)] shadow-sm hover:bg-[var(--primary-hover)]"
             >
               Check my eligibility
             </Link>
-            <a
-              href="#how-it-works"
-              className="inline-flex w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] px-6 py-3.5 text-base font-semibold text-[var(--foreground)] hover:bg-[var(--background)] sm:w-auto"
-            >
-              How it works
-            </a>
+          </div>
+        </section>
+
+        {/* Why This Platform */}
+        <section className="border-t border-[var(--border)] bg-[var(--card)] py-16">
+          <div className="mx-auto max-w-5xl px-4">
+            <h2 className="text-center text-2xl font-semibold text-[var(--foreground)]">
+              Why this platform
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-[var(--muted)]">
+              Government schemes are hard to navigate. Different ministries, banks, and state portals — each with its own rules and deadlines. Most founders don&apos;t know which schemes they qualify for or miss out simply because they never applied.
+            </p>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-[var(--muted)]">
+              We cut through the confusion: one short questionnaire, one dashboard, and a clear list of schemes that match your business.
+            </p>
+          </div>
+        </section>
+
+        {/* What you're missing out on */}
+        <section className="border-t border-[var(--border)] py-16">
+          <div className="mx-auto max-w-5xl px-4">
+            <h2 className="text-center text-2xl font-semibold text-[var(--foreground)]">
+              What you might be missing out on
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-[var(--muted)]">
+              Subsidies on loans, margin money support, interest subvention, and one-time grants. Many MSMEs and startups leave money on the table because they never checked eligibility or assumed they didn&apos;t qualify.
+            </p>
+            <ul className="mx-auto mt-8 grid max-w-2xl gap-3 text-[var(--muted)] sm:grid-cols-2">
+              <li className="flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+                <span className="text-[var(--primary)]">•</span>
+                <span>Credit-linked subsidies and margin money</span>
+              </li>
+              <li className="flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+                <span className="text-[var(--primary)]">•</span>
+                <span>Small-ticket loans (e.g. MUDRA) without collateral</span>
+              </li>
+              <li className="flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+                <span className="text-[var(--primary)]">•</span>
+                <span>State-specific grants and incentives</span>
+              </li>
+              <li className="flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+                <span className="text-[var(--primary)]">•</span>
+                <span>Guarantee schemes that reduce bank risk</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        {/* Testimonials */}
+        <section className="border-t border-[var(--border)] bg-[var(--card)] py-16">
+          <div className="mx-auto max-w-5xl px-4">
+            <h2 className="text-center text-2xl font-semibold text-[var(--foreground)]">
+              What others say
+            </h2>
+            <div className="mt-10 grid gap-8 sm:grid-cols-3">
+              <blockquote className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-6">
+                <p className="text-sm text-[var(--muted)]">
+                  &quot;Finally understood which schemes I can actually apply for. Saved hours of searching.&quot;
+                </p>
+                <footer className="mt-4 text-sm font-medium text-[var(--foreground)]">
+                  — Founder, small manufacturing unit
+                </footer>
+              </blockquote>
+              <blockquote className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-6">
+                <p className="text-sm text-[var(--muted)]">
+                  &quot;Clear list of documents and timeline. Made the application process less daunting.&quot;
+                </p>
+                <footer className="mt-4 text-sm font-medium text-[var(--foreground)]">
+                  — MSME, services sector
+                </footer>
+              </blockquote>
+              <blockquote className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-6">
+                <p className="text-sm text-[var(--muted)]">
+                  &quot;Got matched with a scheme I hadn&apos;t heard of. Applied and got the subsidy.&quot;
+                </p>
+                <footer className="mt-4 text-sm font-medium text-[var(--foreground)]">
+                  — Startup, technology
+                </footer>
+              </blockquote>
+            </div>
           </div>
         </section>
 
         <section
           id="how-it-works"
-          className="border-t border-[var(--border)] bg-[var(--card)] py-16"
+          className="border-t border-[var(--border)] py-16"
         >
           <div className="mx-auto max-w-5xl px-4">
             <h2 className="text-center text-2xl font-semibold text-[var(--foreground)]">
@@ -99,21 +173,14 @@ export default function LandingPage() {
                 </p>
               </li>
             </ul>
-          </div>
-        </section>
-
-        <section className="py-16">
-          <div className="mx-auto max-w-3xl px-4 text-center">
-            <p className="text-sm text-[var(--muted)]">
-              Trusted by startups and small businesses to find the right
-              government support. No spam, no complexity.
-            </p>
-            <Link
-              href="/login?next=/dashboard/onboarding"
-              className="mt-6 inline-block rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-semibold text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)]"
-            >
-              Check my eligibility
-            </Link>
+            <div className="mt-10 text-center">
+              <Link
+                href="/eligibility"
+                className="inline-flex items-center justify-center rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-semibold text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)]"
+              >
+                Check my eligibility
+              </Link>
+            </div>
           </div>
         </section>
       </main>

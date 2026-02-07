@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/admin";
 import Link from "next/link";
 
 export default async function ProtectedLayout({
@@ -10,6 +11,7 @@ export default async function ProtectedLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const isAdmin = user ? isAdminEmail(user.email) : false;
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -40,6 +42,14 @@ export default async function ProtectedLayout({
             >
               Help
             </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="text-sm font-medium text-[var(--primary)] hover:underline"
+              >
+                Admin
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-4">
             <span className="text-sm text-[var(--muted)]">{user?.email}</span>
