@@ -1,7 +1,8 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import type { EligibilityRules } from "@/lib/db/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SchemeFormClient } from "../SchemeFormClient";
+import { SchemeFormClient } from "../../SchemeFormClient";
 
 export default async function EditSchemePage({
   params,
@@ -26,7 +27,7 @@ export default async function EditSchemePage({
     required_documents: Array.isArray(scheme.required_documents) ? scheme.required_documents : [],
     estimated_timeline: scheme.estimated_timeline ?? "",
     states_applicable: Array.isArray(scheme.states_applicable) ? scheme.states_applicable : [],
-    eligibility_rules: (scheme.eligibility_rules as object) ?? {},
+    eligibility_rules: (scheme.eligibility_rules as EligibilityRules) ?? {},
   };
 
   return (
