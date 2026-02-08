@@ -62,21 +62,21 @@ export default function LandingPage() {
           />
           <div className="banner-overlay" aria-hidden />
           <div className="relative z-10 mx-auto max-w-4xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-700">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-300">
               For startups &amp; MSMEs
             </p>
-            <h1 className="mt-6 text-4xl font-extrabold leading-[1.1] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+            <h1 className="mt-6 text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
               Find government schemes
               <br />
-              <span className="text-blue-700">you&apos;re eligible for</span>
+              <span className="text-blue-300">you&apos;re eligible for</span>
             </h1>
-            <p className="mx-auto mt-8 max-w-lg text-lg leading-relaxed text-slate-700">
+            <p className="mx-auto mt-8 max-w-lg text-lg leading-relaxed text-slate-200">
               One short form. A clear list of subsidies, loans, and grants that match your business. No jargon.
             </p>
             <div className="mt-12">
               <Link
                 href="/eligibility"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-700 px-8 py-4 text-base font-semibold text-white shadow-xl shadow-blue-700/30 transition-all duration-300 hover:scale-[1.03] hover:bg-blue-800 hover:shadow-2xl hover:shadow-blue-700/40"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-8 py-4 text-base font-semibold text-white shadow-xl shadow-[var(--primary)]/40 transition-all duration-300 hover:scale-[1.03] hover:bg-[var(--primary-hover)] hover:shadow-2xl hover:shadow-[var(--primary)]/50"
               >
                 Check my eligibility
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -85,15 +85,15 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-          <a href="#why" className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 text-slate-700 transition hover:text-slate-900" aria-label="Scroll down">
+          <a href="#why" className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 text-slate-300 transition hover:text-white" aria-label="Scroll down">
             <svg className="h-8 w-8 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
           </a>
         </section>
 
-        {/* ——— Why us — full height ——— */}
-        <section id="why" className="flex min-h-screen flex-col items-center justify-center border-t border-[var(--border)] bg-[var(--card)] py-20">
+        {/* ——— Why us — content-sized ——— */}
+        <section id="why" className="flex flex-col items-center justify-center border-t border-[var(--border)] bg-[var(--card)] py-16 sm:py-20">
           <div className="mx-auto max-w-4xl px-4 text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-[var(--primary)]">Why SchemeMatch</p>
             <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -109,7 +109,7 @@ export default function LandingPage() {
         </section>
 
         {/* ——— What you're missing — cards with icons ——— */}
-        <section id="missing" className="flex min-h-screen flex-col items-center justify-center py-20">
+        <section id="missing" className="flex flex-col items-center justify-center border-t border-[var(--border)] bg-[var(--background)] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4">
             <p className="text-center text-sm font-semibold uppercase tracking-widest text-[var(--primary)]">What you might be missing</p>
             <h2 className="mt-4 text-center text-3xl font-bold tracking-tight sm:text-4xl">
@@ -142,7 +142,7 @@ export default function LandingPage() {
         </section>
 
         {/* ——— Testimonials ——— */}
-        <section className="flex min-h-screen flex-col items-center justify-center border-y border-[var(--border)] bg-[var(--card)] py-20">
+        <section className="flex flex-col items-center justify-center border-t border-[var(--border)] bg-[var(--card)] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4">
             <p className="text-center text-sm font-semibold uppercase tracking-widest text-[var(--primary)]">Testimonials</p>
             <h2 className="mt-4 text-center text-3xl font-bold tracking-tight sm:text-4xl">
@@ -165,7 +165,7 @@ export default function LandingPage() {
         </section>
 
         {/* ——— How it works + CTA ——— */}
-        <section id="how-it-works" className="flex min-h-screen flex-col items-center justify-center py-20">
+        <section id="how-it-works" className="flex flex-col items-center justify-center border-t border-[var(--border)] bg-[var(--background)] py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4">
             <p className="text-center text-sm font-semibold uppercase tracking-widest text-[var(--primary)]">How it works</p>
             <h2 className="mt-4 text-center text-3xl font-bold tracking-tight sm:text-4xl">

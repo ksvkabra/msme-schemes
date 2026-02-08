@@ -67,23 +67,21 @@ body {
   --accent-muted-foreground: #1e40af;
 }
 
-/* Hero banner: image + soft grayish overlay (no sharp white) */
+/* Hero banner: image + gray gradient overlay for readable text (no white) */
 .banner-hero {
   position: relative;
-  background-color: #94a3b8;
+  background-color: #374151;
 }
 .banner-hero .banner-overlay {
   position: absolute;
   inset: 0;
-  /* Top: dark for header; smooth grayish gradient to bottom (slate-100/200) so text reads well */
+  /* Gray gradient: darker at top, stays gray toward bottom */
   background: linear-gradient(
     180deg,
-    rgba(15, 23, 42, 0.55) 0%,
-    rgba(30, 41, 59, 0.25) 22%,
-    rgba(71, 85, 105, 0.15) 45%,
-    rgba(148, 163, 184, 0.4) 70%,
-    rgba(226, 232, 240, 0.92) 88%,
-    rgba(241, 245, 249, 0.96) 100%
+    rgba(17, 24, 39, 0.82) 0%,
+    rgba(31, 41, 55, 0.7) 35%,
+    rgba(55, 65, 81, 0.65) 65%,
+    rgba(75, 85, 99, 0.6) 100%
   );
   pointer-events: none;
 }
