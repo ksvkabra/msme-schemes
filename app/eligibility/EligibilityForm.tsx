@@ -83,6 +83,12 @@ export function EligibilityForm() {
     });
     setSendingLink(false);
     if (err) {
+      const isRateLimit = /rate limit|too many requests/i.test(err.message) || err.message?.includes("rate_limit");
+      if (isRateLimit) {
+        setError("Too many emails sent. Wait an hour or check your inbox for an existing link. You can still continue.");
+        setStep(1); // Let them continue the questionnaire
+        return;
+      }
       setError(err.message);
       return;
     }

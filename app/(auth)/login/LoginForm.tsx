@@ -29,7 +29,12 @@ export default function LoginForm() {
     });
     setLoading(false);
     if (err) {
-      setError(err.message);
+      const isRateLimit = /rate limit|too many requests/i.test(err.message) || err.message?.includes("rate_limit");
+      setError(
+        isRateLimit
+          ? "Too many sign-in links sent. Please wait an hour before requesting another, or check your inbox for an existing link."
+          : err.message
+      );
       return;
     }
     setLinkSent(true);

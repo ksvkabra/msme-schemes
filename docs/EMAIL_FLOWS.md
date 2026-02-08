@@ -19,6 +19,8 @@ There are **two separate** email flows in the app. It’s easy to mix them up.
 
 **Summary:** One email for auth with a sign-in link only. User clicks the link to sign in. Set `NEXT_PUBLIC_APP_URL` in production so the link works.
 
+**Rate limits:** Supabase limits how many auth emails can be sent (per email address and/or per project). If you see "Email rate limit exceeded", wait about an hour or use an existing magic link. The app shows a friendly message and, on the eligibility flow, still lets you continue the questionnaire. To adjust limits, see Supabase Dashboard → Authentication → Rate Limits (or your plan’s limits).
+
 ---
 
 ## 2. Eligibility summary email
