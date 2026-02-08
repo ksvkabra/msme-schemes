@@ -10,18 +10,17 @@ The initial flow is implemented end-to-end. A few cleanups were done and one see
 
 | Step | Route / action | Status |
 |------|----------------|--------|
-| 1. Landing | `/` — headline, "Check my eligibility", "How it works" | ✅ |
-| 2. Auth | `/login` — email magic link (click link in email); `?next=` preserved | ✅ |
-| 3. Callback | `/auth/callback` — exchanges `code` for session, redirects to `next` | ✅ |
-| 4. Onboarding | `/dashboard/onboarding` — 6 steps, progress bar, button-based, submits to `/api/onboarding` | ✅ |
-| 5. Dashboard | `/dashboard` — summary card (eligible count, High/Medium/Low), scheme cards, View details / Apply | ✅ |
+| 1. Landing | `/` — Hero, Why us, What missing, Testimonials, How it works; one CTA: "Check my eligibility" → `/eligibility` | ✅ |
+| 2. Eligibility flow | `/eligibility` — Step 1: email (verification sent in background, no redirect). Steps 2–7: questionnaire. Final submit → save to `pending_profiles`, show "Verify your email to continue" (no schemes) | ✅ |
+| 3. Auth callback | `/auth/callback` — exchange code for session; merge `pending_profiles` → `business_profiles` by email; redirect `/dashboard` | ✅ |
+| 4. Dashboard | `/dashboard` — verified users only; summary + matched schemes. If no profile, link to `/dashboard/onboarding` | ✅ |
+| 5. Onboarding (fallback) | `/dashboard/onboarding` — for already-logged-in users who need to complete profile; submits to `/api/onboarding` | ✅ |
 | 6. Scheme detail | `/schemes/[id]` — benefits, why qualify, documents, timeline, Start application / Talk to advisor | ✅ |
 | 7. Apply | `/applications/new?scheme_id=` — POST `/api/apply` | ✅ |
 | 8. Applications list | `/applications` — list with status, link to tracker | ✅ |
-| 9. Tracker | `/applications/[id]` — timeline (Eligibility → Disbursal), status from DB | ✅ |
-| 10. Help | `/help` — chat / book call / upload (placeholders) | ✅ |
-| 11. Eligibility entry | `/eligibility` — single email, send verification link, no redirect; CTA continues to onboarding after click | ✅ |
-| 12. Admin | `/admin` — list/add/edit/delete schemes, configure eligibility rules (env `ADMIN_EMAIL`) | ✅ |
+| 9. Tracker | `/applications/[id]` — timeline (Eligibility → Disbursal), status and owner | ✅ |
+| 10. Help | `/help` — placeholders | ✅ |
+| 11. Admin | `/admin` — list/add/edit/delete schemes, eligibility rules (env `ADMIN_EMAIL`) | ✅ |
 | Sign out | POST `/api/auth/signout` → redirect `/` | ✅ |
 
 ---
@@ -38,7 +37,8 @@ The initial flow is implemented end-to-end. A few cleanups were done and one see
 
 ## APIs
 
-- **POST `/api/onboarding`** — Validates body (business_type, industry, state, turnover_range, company_age, funding_goal), upserts `business_profiles`. Auth required.
+- **POST `/api/eligibility/submit`** — No auth. Accepts email + business_type, industry, state, turnover_range, company_age, funding_goal. Upserts `pending_profiles` (keyed by email). Used when user completes the eligibility wizard before verifying.
+- **POST `/api/onboarding`** — Validates body (business_type, industry, state, turnover_range, company_age, funding_goal), upserts `business_profiles`. Auth required. Used for already-logged-in users (e.g. from `/dashboard/onboarding`).
 - **GET `/api/match-schemes`** — Loads profile + schemes, runs eligibility engine, upserts `user_scheme_matches`. Auth required. (Dashboard also runs match on load.)
 - **POST `/api/apply`** — Inserts into `applications` (scheme_id, status, bank_name). Auth required.
 - **GET `/api/schemes/[id]`** — Returns scheme by id. Used by application form.
@@ -51,8 +51,9 @@ The initial flow is implemented end-to-end. A few cleanups were done and one see
 
 - **Migrations:**  
   - `20250203000000_initial_schema.sql` — business_profiles, schemes, user_scheme_matches, applications, RLS, triggers.  
-  - `20250203100000_add_funding_goal_and_scheme_fields.sql` — funding_goal, key_benefit_display, required_documents, estimated_timeline.
-- **Seed:** `supabase/seed.sql` — 3 sample schemes. **Eligibility rules use turnover in lakhs** (engine expects lakhs); seed was updated from rupees to lakhs.
+  - `20250203100000_add_funding_goal_and_scheme_fields.sql` — funding_goal, key_benefit_display, required_documents, estimated_timeline.  
+  - `20250207000000_pending_profiles.sql` — pending_profiles (email, business details) for unverified users; merged into business_profiles on magic-link verification.
+- **Seed:** `supabase/seed.sql` — 3 sample schemes. **Eligibility rules use turnover in lakhs** (engine expects lakhs).
 
 ---
 
@@ -68,6 +69,7 @@ The initial flow is implemented end-to-end. A few cleanups were done and one see
 1. **Supabase**
    - [ ] Run `supabase/migrations/20250203000000_initial_schema.sql`.
    - [ ] Run `supabase/migrations/20250203100000_add_funding_goal_and_scheme_fields.sql`.
+   - [ ] Run `supabase/migrations/20250207000000_pending_profiles.sql`.
    - [ ] Optional: run `supabase/seed.sql` for sample schemes.
    - [ ] Auth → URL Configuration: Site URL = `http://localhost:3000` (or your production URL), Redirect URLs include `http://localhost:3000/auth/callback` (and your production callback URL in prod).
    - [ ] Auth → Email: enable Email provider (for OTP / magic link).
