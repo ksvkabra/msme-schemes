@@ -11,9 +11,12 @@ const derivedSchema = z.object({
   funding_goal: z.enum(["loan", "subsidy", "grant", "any"]).optional(),
 });
 
-/** New payload: email + step1 answers + derived profile (from step 1). Optional step2. */
+/** New payload: email + entityType + startup/msme flow data + derived profile. Optional step2. */
 const newBodySchema = z.object({
   email: z.string().email(),
+  entityType: z.enum(["startup", "msme"]).optional(),
+  startup: z.record(z.string(), z.unknown()).optional(),
+  msme: z.record(z.string(), z.unknown()).optional(),
   step1: z.record(z.string(), z.unknown()).optional(),
   step2: z.record(z.string(), z.unknown()).optional(),
   derived: derivedSchema,
