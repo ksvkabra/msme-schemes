@@ -17,7 +17,6 @@ const newBodySchema = z.object({
   entityType: z.enum(["startup", "msme"]).optional(),
   startup: z.record(z.string(), z.unknown()).optional(),
   msme: z.record(z.string(), z.unknown()).optional(),
-  step1: z.record(z.string(), z.unknown()).optional(),
   step2: z.record(z.string(), z.unknown()).optional(),
   derived: derivedSchema,
 });

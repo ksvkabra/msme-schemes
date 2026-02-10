@@ -1,7 +1,9 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import {
   GATEWAY_QUESTION,
   STARTUP_QUESTIONS,
@@ -10,14 +12,11 @@ import {
   type EntityType,
   type StartupFormData,
   type MSMEFormData,
-} from "@/lib/eligibility/questions";
-import {
-  deriveStartupProfile,
-  deriveMSMEProfile,
-} from "@/lib/eligibility/derive-profile";
-import type { Scheme } from "@/lib/db/types";
+} from '@/lib/eligibility/questions';
+import { deriveStartupProfile, deriveMSMEProfile } from '@/lib/eligibility/derive-profile';
+import type { Scheme } from '@/lib/db/types';
 
-type Phase = "email" | "gateway" | "startup" | "msme" | "results" | "step2" | "verify";
+type Phase = 'email' | 'gateway' | 'startup' | 'msme' | 'results' | 'step2' | 'verify';
 
 type MatchResult = {
   scheme: Scheme;
@@ -30,25 +29,33 @@ const MSME_LEN = MSME_QUESTIONS.length;
 const STEP2_LEN = STEP2_QUESTIONS.length;
 
 export function EligibilityForm() {
-  const [phase, setPhase] = useState<Phase>("email");
+  const [phase, setPhase] = useState<Phase>('email');
   const [entityType, setEntityType] = useState<EntityType | null>(null);
   const [flowStepIndex, setFlowStepIndex] = useState(0);
   const [step2Index, setStep2Index] = useState(0);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState('');
   const [startupData, setStartupData] = useState<StartupFormData>({});
   const [msmeData, setMsmeData] = useState<MSMEFormData>({});
   const [step2Data, setStep2Data] = useState<Record<string, string>>({});
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
+  // Verify step: send OTP only when user clicks (saves rate limit)
+  const [verificationCodeSent, setVerificationCodeSent] = useState(false);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [sendOtpLoading, setSendOtpLoading] = useState(false);
+  const sendOtpRef = useRef(false);
+  const router = useRouter();
+  const supabase = createClient();
 
-  const flowQuestions = entityType === "startup" ? STARTUP_QUESTIONS : MSME_QUESTIONS;
-  const flowLen = entityType === "startup" ? STARTUP_LEN : MSME_LEN;
-  const flowData = entityType === "startup" ? startupData : msmeData;
+  const flowQuestions = entityType === 'startup' ? STARTUP_QUESTIONS : MSME_QUESTIONS;
+  const flowLen = entityType === 'startup' ? STARTUP_LEN : MSME_LEN;
+  const flowData = entityType === 'startup' ? startupData : msmeData;
   const currentFlowStep = flowQuestions[flowStepIndex];
 
   function setFlowData(key: string, val: string) {
-    if (entityType === "startup") {
+    if (entityType === 'startup') {
       setStartupData((prev) => ({ ...prev, [key]: val }));
     } else {
       setMsmeData((prev) => ({ ...prev, [key]: val }));
@@ -56,21 +63,21 @@ export function EligibilityForm() {
   }
 
   function getDerivedProfile() {
-    if (entityType === "startup") return deriveStartupProfile(startupData);
+    if (entityType === 'startup') return deriveStartupProfile(startupData);
     return deriveMSMEProfile(msmeData);
   }
 
   // ——— Email ———
   function handleEmailNext(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError('');
     if (!email.trim()) return;
-    setPhase("gateway");
+    setPhase('gateway');
   }
 
   // ——— Gateway: Startup vs MSME ———
   function handleGatewaySelect(val: string) {
-    if (val !== "startup" && val !== "msme") return;
+    if (val !== 'startup' && val !== 'msme') return;
     setEntityType(val);
     setFlowStepIndex(0);
     setPhase(val);
@@ -91,40 +98,40 @@ export function EligibilityForm() {
 
   async function fetchMatchesAndShowResults() {
     setSubmitting(true);
-    setError("");
-    const res = await fetch("/api/eligibility/preview-matches", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    setError('');
+    const res = await fetch('/api/eligibility/preview-matches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         entityType,
-        startup: entityType === "startup" ? startupData : undefined,
-        msme: entityType === "msme" ? msmeData : undefined,
+        startup: entityType === 'startup' ? startupData : undefined,
+        msme: entityType === 'msme' ? msmeData : undefined,
       }),
     });
     setSubmitting(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      setError(j.error ?? "Could not load matches. Please try again.");
+      setError(j.error ?? 'Could not load matches. Please try again.');
       return;
     }
     const json = await res.json();
     setMatches(json.matches ?? []);
-    setPhase("results");
+    setPhase('results');
   }
 
   // ——— Results: Save or Continue with full questionnaire ———
   async function handleSaveAndEmail() {
     setSubmitting(true);
-    setError("");
+    setError('');
     const profile = getDerivedProfile();
-    const res = await fetch("/api/eligibility/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('/api/eligibility/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email.trim().toLowerCase(),
         entityType,
-        startup: entityType === "startup" ? startupData : undefined,
-        msme: entityType === "msme" ? msmeData : undefined,
+        startup: entityType === 'startup' ? startupData : undefined,
+        msme: entityType === 'msme' ? msmeData : undefined,
         derived: {
           business_type: profile.business_type,
           industry: profile.industry,
@@ -138,14 +145,14 @@ export function EligibilityForm() {
     setSubmitting(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      setError(j.error ?? "Failed to save. Please try again.");
+      setError(j.error ?? 'Failed to save. Please try again.');
       return;
     }
-    setPhase("verify");
+    setPhase('verify');
   }
 
   function handleContinueFullQuestionnaire() {
-    setPhase("step2");
+    setPhase('step2');
     setStep2Index(0);
   }
 
@@ -165,16 +172,16 @@ export function EligibilityForm() {
 
   async function submitWithStep2() {
     setSubmitting(true);
-    setError("");
+    setError('');
     const profile = getDerivedProfile();
-    const res = await fetch("/api/eligibility/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('/api/eligibility/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email.trim().toLowerCase(),
         entityType,
-        startup: entityType === "startup" ? startupData : undefined,
-        msme: entityType === "msme" ? msmeData : undefined,
+        startup: entityType === 'startup' ? startupData : undefined,
+        msme: entityType === 'msme' ? msmeData : undefined,
         step2: step2Data,
         derived: {
           business_type: profile.business_type,
@@ -189,55 +196,172 @@ export function EligibilityForm() {
     setSubmitting(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      setError(j.error ?? "Failed to save. Please try again.");
+      setError(j.error ?? 'Failed to save. Please try again.');
       return;
     }
-    setPhase("verify");
+    setPhase('verify');
   }
 
-  // ——— Verify ———
-  if (phase === "verify") {
+  // ——— Verify: send OTP only when user requests it (one email per user, after form complete) ———
+  async function handleSendVerificationCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (sendOtpRef.current) return;
+    setError('');
+    sendOtpRef.current = true;
+    setSendOtpLoading(true);
+    const baseUrl =
+      typeof process.env.NEXT_PUBLIC_APP_URL === 'string' && process.env.NEXT_PUBLIC_APP_URL
+        ? process.env.NEXT_PUBLIC_APP_URL
+        : typeof window !== 'undefined'
+          ? window.location.origin
+          : '';
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: { emailRedirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}` },
+    });
+    setSendOtpLoading(false);
+    sendOtpRef.current = false;
+    if (err) {
+      const isRateLimit = /rate limit|too many requests/i.test(err.message) || err.message?.includes('rate_limit');
+      setError(isRateLimit ? 'Too many verification attempts. Please wait an hour or check your inbox for an existing code.' : err.message);
+      return;
+    }
+    setVerificationCodeSent(true);
+  }
+
+  async function handleVerifyCodeAndContinue(e: React.FormEvent) {
+    e.preventDefault();
+    const token = verifyCode.replace(/\s/g, '').trim();
+    if (!token) {
+      setError('Please enter the 6-digit code.');
+      return;
+    }
+    setError('');
+    setVerifying(true);
+    const { error: err } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token,
+      type: 'email',
+    });
+    setVerifying(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    router.push('/dashboard');
+    router.refresh();
+  }
+
+  // ——— Verify phase UI ———
+  if (phase === 'verify') {
+    if (!verificationCodeSent) {
+      return (
+        <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
+          <div className='w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
+            <h1 className='text-xl font-semibold text-[var(--foreground)]'>Verify your email</h1>
+            <p className='mt-3 text-sm text-[var(--muted)]'>
+              We&apos;ve saved your profile for <strong>{email}</strong>. To see your matched schemes, we need to verify your email. Click
+              below to receive a one-time code.
+            </p>
+            <form onSubmit={handleSendVerificationCode} className='mt-6 space-y-3'>
+              <button
+                type='submit'
+                disabled={sendOtpLoading}
+                className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50'
+              >
+                {sendOtpLoading ? 'Sending…' : 'Send verification code'}
+              </button>
+              {error && <p className='text-sm text-red-600 dark:text-red-400'>{error}</p>}
+            </form>
+            <div className='mt-6 flex flex-col gap-3'>
+              <Link
+                href='/'
+                className='w-full rounded-lg border border-[var(--border)] py-2.5 text-center text-sm font-medium text-[var(--foreground)] hover:bg-[var(--background)]'
+              >
+                Back to home
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] p-4">
-        <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
-          <h1 className="text-xl font-semibold text-[var(--foreground)]">All set</h1>
-          <p className="mt-3 text-sm text-[var(--muted)]">
-            We&apos;ve saved your profile for <strong>{email}</strong>. Sign in anytime to see your matched schemes on the dashboard.
+      <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
+        <div className='w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
+          <h1 className='text-xl font-semibold text-[var(--foreground)]'>Check your email</h1>
+          <p className='mt-3 text-sm text-[var(--muted)]'>
+            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to see your matched schemes.
           </p>
-          <div className="mt-6 flex flex-col gap-3">
-            <Link href="/" className="w-full rounded-lg bg-[var(--primary)] py-2.5 text-center text-sm font-medium text-[var(--primary-foreground)] hover:opacity-90">
+          <form onSubmit={handleVerifyCodeAndContinue} className='mt-6 space-y-3'>
+            <input
+              type='text'
+              inputMode='numeric'
+              autoComplete='one-time-code'
+              placeholder='000000'
+              maxLength={6}
+              value={verifyCode}
+              onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className='w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-center text-lg tracking-widest'
+            />
+            {error && <p className='text-sm text-red-600 dark:text-red-400'>{error}</p>}
+            <button
+              type='submit'
+              disabled={verifying || verifyCode.length !== 6}
+              className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50'
+            >
+              {verifying ? 'Verifying…' : 'Verify and see schemes'}
+            </button>
+          </form>
+          <button
+            type='button'
+            onClick={() => {
+              setVerificationCodeSent(false);
+              setVerifyCode('');
+              setError('');
+            }}
+            className='mt-4 w-full rounded-lg border border-[var(--border)] py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--background)]'
+          >
+            Use a different email
+          </button>
+          <p className='mt-4 text-center text-sm text-[var(--muted)]'>
+            <Link href='/' className='hover:underline'>
               Back to home
             </Link>
-          </div>
+          </p>
         </div>
       </div>
     );
   }
 
   // ——— Email step ———
-  if (phase === "email") {
+  if (phase === 'email') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] p-4">
-        <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
-          <p className="text-sm font-medium text-[var(--muted)]">Step 1</p>
-          <h1 className="mt-2 text-xl font-semibold text-[var(--foreground)]">Check your eligibility</h1>
-          <p className="mt-2 text-sm text-[var(--muted)]">Enter your email to continue.</p>
-          <form onSubmit={handleEmailNext} className="mt-6 space-y-3">
+      <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
+        <div className='w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
+          <p className='text-sm font-medium text-[var(--muted)]'>Step 1</p>
+          <h1 className='mt-2 text-xl font-semibold text-[var(--foreground)]'>Check your eligibility</h1>
+          <p className='mt-2 text-sm text-[var(--muted)]'>Enter your email to continue.</p>
+          <form onSubmit={handleEmailNext} className='mt-6 space-y-3'>
             <input
-              type="email"
-              placeholder="you@example.com"
+              type='email'
+              placeholder='you@example.com'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5"
+              className='w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5'
             />
-            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-            <button type="submit" className="w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90">
+            {error && <p className='text-sm text-red-600 dark:text-red-400'>{error}</p>}
+            <button
+              type='submit'
+              className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90'
+            >
               Continue
             </button>
           </form>
-          <p className="mt-4 text-center text-sm text-[var(--muted)]">
-            <Link href="/" className="hover:underline">Back to home</Link>
+          <p className='mt-4 text-center text-sm text-[var(--muted)]'>
+            <Link href='/' className='hover:underline'>
+              Back to home
+            </Link>
           </p>
         </div>
       </div>
@@ -245,33 +369,37 @@ export function EligibilityForm() {
   }
 
   // ——— Gateway ———
-  if (phase === "gateway") {
+  if (phase === 'gateway') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] p-4">
-        <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
-          <p className="text-sm font-medium text-[var(--muted)]">Step 2 — Entity classification</p>
-          <h1 className="mt-2 text-xl font-semibold text-[var(--foreground)]">{GATEWAY_QUESTION.title}</h1>
-          {GATEWAY_QUESTION.subtitle && (
-            <p className="mt-1 text-sm text-[var(--muted)]">{GATEWAY_QUESTION.subtitle}</p>
-          )}
-          <ul className="mt-6 grid gap-3">
+      <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
+        <div className='w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
+          <p className='text-sm font-medium text-[var(--muted)]'>Step 2 — Entity classification</p>
+          <h1 className='mt-2 text-xl font-semibold text-[var(--foreground)]'>{GATEWAY_QUESTION.title}</h1>
+          {GATEWAY_QUESTION.subtitle && <p className='mt-1 text-sm text-[var(--muted)]'>{GATEWAY_QUESTION.subtitle}</p>}
+          <ul className='mt-6 grid gap-3'>
             {GATEWAY_QUESTION.options.map((opt) => (
               <li key={opt.value}>
                 <button
-                  type="button"
+                  type='button'
                   onClick={() => handleGatewaySelect(opt.value)}
-                  className="w-full rounded-xl border-2 px-4 py-3.5 text-left text-base font-medium transition-colors border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--primary)]/50"
+                  className='w-full rounded-xl border-2 px-4 py-3.5 text-left text-base font-medium transition-colors border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--primary)]/50'
                 >
                   {opt.label}
                 </button>
               </li>
             ))}
           </ul>
-          <button type="button" onClick={() => setPhase("email")} className="mt-6 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]">
+          <button
+            type='button'
+            onClick={() => setPhase('email')}
+            className='mt-6 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]'
+          >
             ← Back
           </button>
-          <p className="mt-4 text-center text-sm text-[var(--muted)]">
-            <Link href="/" className="hover:underline">Back to home</Link>
+          <p className='mt-4 text-center text-sm text-[var(--muted)]'>
+            <Link href='/' className='hover:underline'>
+              Back to home
+            </Link>
           </p>
         </div>
       </div>
@@ -279,45 +407,59 @@ export function EligibilityForm() {
   }
 
   // ——— Results ———
-  if (phase === "results") {
+  if (phase === 'results') {
     const profile = getDerivedProfile();
-    const flowLabel = entityType === "startup" ? "Startup" : "MSME";
+    const flowLabel = entityType === 'startup' ? 'Startup' : 'MSME';
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] p-4">
-        <div className="w-full max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
-          <h1 className="text-xl font-semibold text-[var(--foreground)]">Your matched schemes</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Based on your <strong>{flowLabel}</strong> answers we&apos;ve classified you as <strong>{profile.business_type}</strong> in {profile.industry}.
+      <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
+        <div className='w-full max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
+          <h1 className='text-xl font-semibold text-[var(--foreground)]'>Your matched schemes</h1>
+          <p className='mt-1 text-sm text-[var(--muted)]'>
+            Based on your <strong>{flowLabel}</strong> answers we&apos;ve classified you as <strong>{profile.business_type}</strong> in{' '}
+            {profile.industry}.
           </p>
-          <div className="mt-6 max-h-80 space-y-3 overflow-y-auto">
+          <div className='mt-6 max-h-80 space-y-3 overflow-y-auto'>
             {matches.length === 0 ? (
-              <p className="text-sm text-[var(--muted)]">No schemes matched yet. Try different criteria or complete the full questionnaire.</p>
+              <p className='text-sm text-[var(--muted)]'>
+                No schemes matched yet. Try different criteria or complete the full questionnaire.
+              </p>
             ) : (
               matches.slice(0, 15).map((m) => (
-                <div key={m.scheme.id} className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
-                  <div className="flex justify-between gap-2">
-                    <span className="font-medium text-[var(--foreground)]">{m.scheme.name}</span>
-                    <span className="text-sm text-[var(--muted)]">{m.score}% match</span>
+                <div key={m.scheme.id} className='rounded-lg border border-[var(--border)] bg-[var(--background)] p-4'>
+                  <div className='flex justify-between gap-2'>
+                    <span className='font-medium text-[var(--foreground)]'>{m.scheme.name}</span>
+                    <span className='text-sm text-[var(--muted)]'>{m.score}% match</span>
                   </div>
-                  {m.scheme.key_benefit_display && <p className="mt-1 text-sm text-[var(--muted)]">{m.scheme.key_benefit_display}</p>}
+                  {m.scheme.key_benefit_display && <p className='mt-1 text-sm text-[var(--muted)]'>{m.scheme.key_benefit_display}</p>}
                   {m.missingRequirements.length > 0 && (
-                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">Missing: {m.missingRequirements.join(", ")}</p>
+                    <p className='mt-1 text-xs text-amber-600 dark:text-amber-400'>Missing: {m.missingRequirements.join(', ')}</p>
                   )}
                 </div>
               ))
             )}
           </div>
-          <div className="mt-6 flex flex-col gap-3">
-            <button type="button" onClick={handleSaveAndEmail} disabled={submitting} className="w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50">
-              {submitting ? "Saving…" : "Save & get results by email"}
+          <div className='mt-6 flex flex-col gap-3'>
+            <button
+              type='button'
+              onClick={handleSaveAndEmail}
+              disabled={submitting}
+              className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50'
+            >
+              {submitting ? 'Saving…' : 'Save and verify email to see schemes'}
             </button>
-            <button type="button" onClick={handleContinueFullQuestionnaire} className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] py-2.5 font-medium text-[var(--foreground)] hover:bg-[var(--background)]">
+            <button
+              type='button'
+              onClick={handleContinueFullQuestionnaire}
+              className='w-full rounded-lg border border-[var(--border)] bg-[var(--card)] py-2.5 font-medium text-[var(--foreground)] hover:bg-[var(--background)]'
+            >
               Continue with full questionnaire
             </button>
           </div>
-          {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
-          <p className="mt-4 text-center text-sm text-[var(--muted)]">
-            <Link href="/" className="hover:underline">Back to home</Link>
+          {error && <p className='mt-4 text-sm text-red-600 dark:text-red-400'>{error}</p>}
+          <p className='mt-4 text-center text-sm text-[var(--muted)]'>
+            <Link href='/' className='hover:underline'>
+              Back to home
+            </Link>
           </p>
         </div>
       </div>
@@ -325,29 +467,33 @@ export function EligibilityForm() {
   }
 
   // ——— Step 2: extended ———
-  if (phase === "step2" && currentStep2) {
+  if (phase === 'step2' && currentStep2) {
     const progress = ((step2Index + 1) / STEP2_LEN) * 100;
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] p-4">
-        <div className="w-full max-w-lg">
-          <div className="mb-6">
-            <div className="flex justify-between text-sm text-[var(--muted)]">Full questionnaire — {step2Index + 1} of {STEP2_LEN}</div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--border)]">
-              <div className="h-full rounded-full bg-[var(--primary)] transition-all duration-300" style={{ width: `${progress}%` }} />
+      <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
+        <div className='w-full max-w-lg'>
+          <div className='mb-6'>
+            <div className='flex justify-between text-sm text-[var(--muted)]'>
+              Full questionnaire — {step2Index + 1} of {STEP2_LEN}
+            </div>
+            <div className='mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--border)]'>
+              <div className='h-full rounded-full bg-[var(--primary)] transition-all duration-300' style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-8">
-            <h1 className="text-xl font-semibold text-[var(--foreground)]">{currentStep2.title}</h1>
-            {currentStep2.subtitle && <p className="mt-1 text-sm text-[var(--muted)]">{currentStep2.subtitle}</p>}
-            <ul className="mt-6 grid gap-3">
+          <div className='rounded-xl border border-[var(--border)] bg-[var(--card)] p-8'>
+            <h1 className='text-xl font-semibold text-[var(--foreground)]'>{currentStep2.title}</h1>
+            {currentStep2.subtitle && <p className='mt-1 text-sm text-[var(--muted)]'>{currentStep2.subtitle}</p>}
+            <ul className='mt-6 grid gap-3'>
               {currentStep2.options.map((opt) => (
                 <li key={opt.value}>
                   <button
-                    type="button"
+                    type='button'
                     onClick={() => handleStep2Select(opt.value)}
                     disabled={submitting}
                     className={`w-full rounded-xl border-2 px-4 py-3.5 text-left text-base font-medium transition-colors ${
-                      step2Value === opt.value ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--primary)]/50"
+                      step2Value === opt.value
+                        ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
+                        : 'border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--primary)]/50'
                     }`}
                   >
                     {opt.label}
@@ -355,11 +501,19 @@ export function EligibilityForm() {
                 </li>
               ))}
             </ul>
-            {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
-            <button type="button" onClick={() => setStep2Index((i) => Math.max(0, i - 1))} className="mt-6 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]">← Back</button>
+            {error && <p className='mt-4 text-sm text-red-600 dark:text-red-400'>{error}</p>}
+            <button
+              type='button'
+              onClick={() => setStep2Index((i) => Math.max(0, i - 1))}
+              className='mt-6 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]'
+            >
+              ← Back
+            </button>
           </div>
-          <p className="mt-4 text-center text-sm text-[var(--muted)]">
-            <Link href="/" className="hover:underline">Back to home</Link>
+          <p className='mt-4 text-center text-sm text-[var(--muted)]'>
+            <Link href='/' className='hover:underline'>
+              Back to home
+            </Link>
           </p>
         </div>
       </div>
@@ -367,34 +521,38 @@ export function EligibilityForm() {
   }
 
   // ——— Startup or MSME flow steps ———
-  if ((phase === "startup" || phase === "msme") && currentFlowStep) {
+  if ((phase === 'startup' || phase === 'msme') && currentFlowStep) {
     const totalSteps = 1 + 1 + flowLen; // email + gateway + flow
     const currentStepNumber = 2 + flowStepIndex;
     const progress = (currentStepNumber / totalSteps) * 100;
-    const flowLabel = entityType === "startup" ? "Startup" : "MSME";
+    const flowLabel = entityType === 'startup' ? 'Startup' : 'MSME';
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--background)] p-4">
-        <div className="w-full max-w-lg">
-          <div className="mb-6">
-            <div className="flex justify-between text-sm text-[var(--muted)]">
-              <span>{flowLabel} — Step {flowStepIndex + 1} of {flowLen}</span>
+      <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
+        <div className='w-full max-w-lg'>
+          <div className='mb-6'>
+            <div className='flex justify-between text-sm text-[var(--muted)]'>
+              <span>
+                {flowLabel} — Step {flowStepIndex + 1} of {flowLen}
+              </span>
             </div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--border)]">
-              <div className="h-full rounded-full bg-[var(--primary)] transition-all duration-300" style={{ width: `${progress}%` }} />
+            <div className='mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--border)]'>
+              <div className='h-full rounded-full bg-[var(--primary)] transition-all duration-300' style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-8">
-            <h1 className="text-xl font-semibold text-[var(--foreground)]">{currentFlowStep.title}</h1>
-            {currentFlowStep.subtitle && <p className="mt-1 text-sm text-[var(--muted)]">{currentFlowStep.subtitle}</p>}
-            <ul className="mt-6 grid gap-3">
+          <div className='rounded-xl border border-[var(--border)] bg-[var(--card)] p-8'>
+            <h1 className='text-xl font-semibold text-[var(--foreground)]'>{currentFlowStep.title}</h1>
+            {currentFlowStep.subtitle && <p className='mt-1 text-sm text-[var(--muted)]'>{currentFlowStep.subtitle}</p>}
+            <ul className='mt-6 grid gap-3'>
               {currentFlowStep.options.map((opt) => (
                 <li key={opt.value}>
                   <button
-                    type="button"
+                    type='button'
                     onClick={() => handleFlowSelect(opt.value)}
                     disabled={submitting}
                     className={`w-full rounded-xl border-2 px-4 py-3.5 text-left text-base font-medium transition-colors ${
-                      flowValue === opt.value ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--primary)]/50"
+                      flowValue === opt.value
+                        ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
+                        : 'border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--primary)]/50'
                     }`}
                   >
                     {opt.label}
@@ -402,18 +560,20 @@ export function EligibilityForm() {
                 </li>
               ))}
             </ul>
-            {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
-            {submitting && <p className="mt-4 text-sm text-[var(--muted)]">Loading…</p>}
+            {error && <p className='mt-4 text-sm text-red-600 dark:text-red-400'>{error}</p>}
+            {submitting && <p className='mt-4 text-sm text-[var(--muted)]'>Loading…</p>}
             <button
-              type="button"
-              onClick={() => (flowStepIndex > 0 ? setFlowStepIndex((i) => i - 1) : setPhase("gateway"))}
-              className="mt-6 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+              type='button'
+              onClick={() => (flowStepIndex > 0 ? setFlowStepIndex((i) => i - 1) : setPhase('gateway'))}
+              className='mt-6 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]'
             >
               ← Back
             </button>
           </div>
-          <p className="mt-4 text-center text-sm text-[var(--muted)]">
-            <Link href="/" className="hover:underline">Back to home</Link>
+          <p className='mt-4 text-center text-sm text-[var(--muted)]'>
+            <Link href='/' className='hover:underline'>
+              Back to home
+            </Link>
           </p>
         </div>
       </div>

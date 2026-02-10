@@ -40,10 +40,10 @@
 - **Default template** → email contains a **link** (magic link). User clicks → redirects to `/auth/callback?code=...` → we call `exchangeCodeForSession(code)`.
 - **If you add `{{ .Token }}` to the template** → email can also (or only) show a **6-digit code**. User can enter it on the login page → we call `verifyOtp({ email, token, type: 'email' })`.
 
-The email contains **only the 6-digit code** (no link). User enters it on the login page; we call `verifyOtp({ email, token, type: 'email' })`. `/auth/callback` is kept for backward compatibility and still migrates `pending_profiles`.
+The email contains **only the 6-digit code** (no link). User enters it on the app; we call `verifyOtp({ email, token, type: 'email' })`. `/auth/callback` is kept for backward compatibility and still migrates `pending_profiles`.
 
-- **Login:** Request code → enter 6-digit code on login page → signed in (verifyOtp).
-- **Eligibility:** We send a code in the background; user goes to the login page and enters the code. Pending profile is migrated on first protected page load or via callback for old links.
+- **Login:** User enters email → clicks “Email me a code” → we send OTP → user enters 6-digit code on login page → signed in (verifyOtp).
+- **Eligibility:** User enters email (no email sent) → completes form → we save to `pending_profiles` → user sees “Verify your email to see your schemes” → user clicks “Send verification code” → we send OTP once → user enters 6-digit code on same page → verifyOtp → redirect to dashboard. Pending profile is migrated in protected layout (or via callback for magic-link clicks). This way we use **one email per new user** and avoid sending at email entry, which helps stay within the 2/hour limit.
 
 ### Without Send Email Hook
 
