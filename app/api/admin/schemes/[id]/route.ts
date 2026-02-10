@@ -1,6 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
+import { hasAdminSessionFromRequest } from "@/lib/admin";
 import { NextResponse } from "next/server";
 import type { EligibilityRules } from "@/lib/db/types";
 
@@ -23,11 +22,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) {
+  if (!hasAdminSessionFromRequest(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -81,14 +76,10 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) {
+  if (!hasAdminSessionFromRequest(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

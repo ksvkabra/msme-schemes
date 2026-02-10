@@ -1,6 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { DeleteSchemeButton } from "./DeleteSchemeButton";
+import { DeleteSchemeButton } from "../DeleteSchemeButton";
 
 export default async function AdminDashboardPage() {
   const db = createServiceRoleClient();

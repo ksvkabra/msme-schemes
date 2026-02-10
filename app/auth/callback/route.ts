@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       const email = user.email.trim().toLowerCase();
       const { data: pending } = await db
         .from("pending_profiles")
-        .select("business_type, industry, state, turnover_range, company_age, funding_goal")
+        .select("business_type, industry, state, turnover_range, company_age, funding_goal, entity_type, questionnaire_responses, step2_responses")
         .eq("email", email)
         .single();
       if (pending) {
@@ -28,6 +28,9 @@ export async function GET(request: Request) {
             turnover_range: pending.turnover_range,
             company_age: pending.company_age,
             funding_goal: pending.funding_goal ?? null,
+            entity_type: pending.entity_type ?? null,
+            questionnaire_responses: pending.questionnaire_responses ?? {},
+            step2_responses: pending.step2_responses ?? {},
           },
           { onConflict: "user_id" }
         );

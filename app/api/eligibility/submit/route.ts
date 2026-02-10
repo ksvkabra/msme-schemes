@@ -45,18 +45,31 @@ export async function POST(request: Request) {
     turnover_range: string;
     company_age: string;
     funding_goal: string | null;
+    entity_type?: "startup" | "msme";
+    questionnaire_responses?: Record<string, unknown>;
+    step2_responses?: Record<string, unknown>;
   };
 
   if (newParsed.success) {
     const d = newParsed.data.derived;
+    const data = newParsed.data;
+    const questionnaireResponses =
+      data.entityType === "startup"
+        ? (data.startup as Record<string, unknown>)
+        : data.entityType === "msme"
+          ? (data.msme as Record<string, unknown>)
+          : undefined;
     payload = {
-      email: newParsed.data.email.trim().toLowerCase(),
+      email: data.email.trim().toLowerCase(),
       business_type: d.business_type,
       industry: d.industry,
       state: d.state,
       turnover_range: d.turnover_range,
       company_age: d.company_age,
       funding_goal: d.funding_goal ?? null,
+      entity_type: data.entityType ?? undefined,
+      questionnaire_responses: questionnaireResponses ?? undefined,
+      step2_responses: data.step2 ? (data.step2 as Record<string, unknown>) : undefined,
     };
   } else if (legacyParsed.success) {
     const p = legacyParsed.data;
@@ -80,18 +93,21 @@ export async function POST(request: Request) {
   }
 
   const db = createServiceRoleClient();
-  const { error } = await db.from("pending_profiles").upsert(
-    {
-      email: payload.email,
-      business_type: payload.business_type,
-      industry: payload.industry,
-      state: payload.state,
-      turnover_range: payload.turnover_range,
-      company_age: payload.company_age,
-      funding_goal: payload.funding_goal,
-    },
-    { onConflict: "email" }
-  );
+  const row: Record<string, unknown> = {
+    email: payload.email,
+    business_type: payload.business_type,
+    industry: payload.industry,
+    state: payload.state,
+    turnover_range: payload.turnover_range,
+    company_age: payload.company_age,
+    funding_goal: payload.funding_goal,
+  };
+  if (payload.entity_type != null) row.entity_type = payload.entity_type;
+  if (payload.questionnaire_responses != null) row.questionnaire_responses = payload.questionnaire_responses;
+  if (payload.step2_responses != null) row.step2_responses = payload.step2_responses;
+  const { error } = await db.from("pending_profiles").upsert(row, {
+    onConflict: "email",
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -21,6 +21,51 @@ export interface QuestionnaireStep {
   maxSelections?: number;
 }
 
+/** Get display label for a question value. */
+export function getOptionLabel(step: QuestionnaireStep, value: string): string {
+  const opt = step.options.find((o) => o.value === value);
+  return opt?.label ?? value;
+}
+
+export type QuestionnaireSummaryRow = { title: string; label: string };
+
+/** Build summary rows for display from stored entity_type + questionnaire_responses + step2_responses. */
+export function buildQuestionnaireSummaryRows(
+  entityType: "startup" | "msme" | null | undefined,
+  questionnaireResponses: Record<string, unknown> | null | undefined,
+  step2Responses: Record<string, unknown> | null | undefined
+): QuestionnaireSummaryRow[] {
+  const rows: QuestionnaireSummaryRow[] = [];
+  if (entityType) {
+    rows.push({
+      title: GATEWAY_QUESTION.title,
+      label: getOptionLabel(GATEWAY_QUESTION, entityType),
+    });
+  }
+  const flowQuestions = entityType === "startup" ? STARTUP_QUESTIONS : entityType === "msme" ? MSME_QUESTIONS : [];
+  const responses = questionnaireResponses ?? {};
+  for (const q of flowQuestions) {
+    const val = responses[q.key];
+    if (val != null && val !== "") {
+      const label =
+        typeof val === "string"
+          ? getOptionLabel(q, val)
+          : Array.isArray(val)
+            ? val.map((v) => getOptionLabel(q, String(v))).join(", ")
+            : String(val);
+      rows.push({ title: q.title, label });
+    }
+  }
+  const step2 = step2Responses ?? {};
+  for (const q of STEP2_QUESTIONS) {
+    const val = step2[q.key];
+    if (val != null && val !== "") {
+      rows.push({ title: q.title, label: getOptionLabel(q, String(val)) });
+    }
+  }
+  return rows;
+}
+
 // ——— Gateway: Entity Classification ———
 export const GATEWAY_QUESTION: QuestionnaireStep = {
   key: "entity_type",

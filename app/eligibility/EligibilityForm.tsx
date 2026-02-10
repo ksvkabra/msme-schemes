@@ -9,6 +9,7 @@ import {
   STARTUP_QUESTIONS,
   MSME_QUESTIONS,
   STEP2_QUESTIONS,
+  getOptionLabel,
   type EntityType,
   type StartupFormData,
   type MSMEFormData,
@@ -16,7 +17,7 @@ import {
 import { deriveStartupProfile, deriveMSMEProfile } from '@/lib/eligibility/derive-profile';
 import type { Scheme } from '@/lib/db/types';
 
-type Phase = 'email' | 'gateway' | 'startup' | 'msme' | 'results' | 'step2' | 'verify';
+type Phase = 'email' | 'gateway' | 'startup' | 'msme' | 'summary' | 'results' | 'step2' | 'verify';
 
 type MatchResult = {
   scheme: Scheme;
@@ -99,6 +100,32 @@ export function EligibilityForm() {
   async function fetchMatchesAndShowResults() {
     setSubmitting(true);
     setError('');
+    // Store responses by email as soon as we reach the last question (before login)
+    const profile = getDerivedProfile();
+    const saveRes = await fetch('/api/eligibility/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        entityType,
+        startup: entityType === 'startup' ? startupData : undefined,
+        msme: entityType === 'msme' ? msmeData : undefined,
+        derived: {
+          business_type: profile.business_type,
+          industry: profile.industry,
+          state: profile.state,
+          turnover_range: profile.turnover_range,
+          company_age: profile.company_age,
+          funding_goal: profile.funding_goal,
+        },
+      }),
+    });
+    if (!saveRes.ok) {
+      setSubmitting(false);
+      const j = await saveRes.json().catch(() => ({}));
+      setError(j.error ?? 'Failed to save. Please try again.');
+      return;
+    }
     const res = await fetch('/api/eligibility/preview-matches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -116,7 +143,7 @@ export function EligibilityForm() {
     }
     const json = await res.json();
     setMatches(json.matches ?? []);
-    setPhase('results');
+    setPhase('summary');
   }
 
   // ——— Results: Save or Continue with full questionnaire ———
@@ -290,7 +317,7 @@ export function EligibilityForm() {
         <div className='w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
           <h1 className='text-xl font-semibold text-[var(--foreground)]'>Check your email</h1>
           <p className='mt-3 text-sm text-[var(--muted)]'>
-            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to see your matched schemes.
+            We sent an email to <strong>{email}</strong>. You can <strong>click the sign-in link</strong> in the email to see your schemes, or if you received a <strong>6-digit code</strong>, enter it below.
           </p>
           <form onSubmit={handleVerifyCodeAndContinue} className='mt-6 space-y-3'>
             <input
@@ -406,7 +433,66 @@ export function EligibilityForm() {
     );
   }
 
-  // ——— Results ———
+  // ——— Summary: all selections + one primary CTA to see schemes by logging in ———
+  if (phase === 'summary') {
+    const flowLabel = entityType === 'startup' ? 'Startup' : 'MSME';
+    const summaryRows: { title: string; label: string }[] = [
+      { title: GATEWAY_QUESTION.title, label: getOptionLabel(GATEWAY_QUESTION, entityType ?? '') },
+    ];
+    flowQuestions.forEach((q) => {
+      const val = flowData[q.key];
+      if (val != null && val !== '') {
+        const label = typeof val === 'string' ? getOptionLabel(q, val) : Array.isArray(val) ? val.map((v) => getOptionLabel(q, v)).join(', ') : String(val);
+        summaryRows.push({ title: q.title, label });
+      }
+    });
+    return (
+      <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
+        <div className='w-full max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
+          <h1 className='text-xl font-semibold text-[var(--foreground)]'>Summary of your selections</h1>
+          <p className='mt-1 text-sm text-[var(--muted)]'>
+            Review your <strong>{flowLabel}</strong> questionnaire answers below.
+          </p>
+          <ul className='mt-6 max-h-72 space-y-3 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--background)] p-4'>
+            {summaryRows.map((row, i) => (
+              <li key={i} className='flex flex-col gap-0.5 text-sm'>
+                <span className='font-medium text-[var(--muted)]'>{row.title}</span>
+                <span className='text-[var(--foreground)]'>{row.label}</span>
+              </li>
+            ))}
+          </ul>
+          {matches.length > 0 && (
+            <p className='mt-4 text-sm text-[var(--muted)]'>
+              We&apos;ve found {matches.length} scheme{matches.length !== 1 ? 's' : ''} matching your profile. Log in to see them.
+            </p>
+          )}
+          <div className='mt-6 flex flex-col gap-3'>
+            <button
+              type='button'
+              onClick={() => setPhase('verify')}
+              className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90'
+            >
+              Send code to {email} to see my schemes
+            </button>
+            <button
+              type='button'
+              onClick={handleContinueFullQuestionnaire}
+              className='w-full rounded-lg border border-[var(--border)] bg-[var(--card)] py-2.5 font-medium text-[var(--foreground)] hover:bg-[var(--background)]'
+            >
+              Continue with full questionnaire
+            </button>
+          </div>
+          <p className='mt-4 text-center text-sm text-[var(--muted)]'>
+            <Link href='/' className='hover:underline'>
+              Back to home
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ——— Results (after step2 or legacy) ———
   if (phase === 'results') {
     const profile = getDerivedProfile();
     const flowLabel = entityType === 'startup' ? 'Startup' : 'MSME';

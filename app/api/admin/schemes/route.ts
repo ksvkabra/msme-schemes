@@ -1,6 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
+import { hasAdminSessionFromRequest } from "@/lib/admin";
 import { NextResponse } from "next/server";
 import type { EligibilityRules } from "@/lib/db/types";
 
@@ -20,11 +19,7 @@ function parseEligibilityRules(raw: unknown): EligibilityRules {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) {
+  if (!hasAdminSessionFromRequest(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -9,6 +9,7 @@ import { Resend } from "npm:resend@4.0.0";
 const resend = new Resend(Deno.env.get("RESEND_API_KEY") ?? "");
 const fromEmail =
   Deno.env.get("RESEND_FROM_EMAIL") ?? "onboarding@resend.dev";
+// Same secret as in Dashboard → Authentication → Hooks (Send Email). Set via: supabase secrets set SEND_EMAIL_HOOK_SECRET=...
 const hookSecretRaw = Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "";
 const hookSecret = hookSecretRaw.replace(/^v1,whsec_/, "");
 

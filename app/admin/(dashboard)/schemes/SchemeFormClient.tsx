@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { SchemeForm } from "../SchemeForm";
+import { SchemeForm } from "../../SchemeForm";
 
 export function SchemeFormClient({
   schemeId,

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { matchSchemes } from "@/lib/eligibility/engine";
+import { buildQuestionnaireSummaryRows } from "@/lib/eligibility/questions";
 import type { BusinessProfile, Scheme } from "@/lib/db/types";
 
 function eligibilityStatus(eligibleCount: number, totalMatches: number): "High" | "Medium" | "Low" {
@@ -59,6 +60,12 @@ export default async function DashboardPage() {
     );
   }
 
+  const profileRow = profile as Record<string, unknown>;
+  const entityType = profileRow.entity_type as "startup" | "msme" | null | undefined;
+  const questionnaireResponses = profileRow.questionnaire_responses as Record<string, unknown> | null | undefined;
+  const step2Responses = profileRow.step2_responses as Record<string, unknown> | null | undefined;
+  const questionnaireRows = buildQuestionnaireSummaryRows(entityType, questionnaireResponses, step2Responses);
+
   return (
     <div className="space-y-8">
       <div>
@@ -69,6 +76,25 @@ export default async function DashboardPage() {
           Schemes matched to your business profile.
         </p>
       </div>
+
+      {questionnaireRows.length > 0 && (
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
+            Your questionnaire & profile
+          </h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Details you shared about your startup or MSME.
+          </p>
+          <ul className="mt-4 space-y-3">
+            {questionnaireRows.map((row, i) => (
+              <li key={i} className="flex flex-col gap-0.5 border-b border-[var(--border)] pb-3 last:border-0 last:pb-0">
+                <span className="text-sm font-medium text-[var(--muted)]">{row.title}</span>
+                <span className="text-[var(--foreground)]">{row.label}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Summary card */}
       <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">

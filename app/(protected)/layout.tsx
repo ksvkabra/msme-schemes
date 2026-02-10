@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
 import Link from "next/link";
 
 export default async function ProtectedLayout({
@@ -12,8 +11,6 @@ export default async function ProtectedLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const isAdmin = user ? isAdminEmail(user.email) : false;
-
   // Migrate pending_profiles → business_profiles for OTP sign-ins (callback only runs for magic-link redirects)
   if (user?.email) {
     const db = createServiceRoleClient();
@@ -26,7 +23,7 @@ export default async function ProtectedLayout({
       const email = user.email.trim().toLowerCase();
       const { data: pending } = await db
         .from("pending_profiles")
-        .select("business_type, industry, state, turnover_range, company_age, funding_goal")
+        .select("business_type, industry, state, turnover_range, company_age, funding_goal, entity_type, questionnaire_responses, step2_responses")
         .eq("email", email)
         .single();
       if (pending) {
@@ -39,6 +36,9 @@ export default async function ProtectedLayout({
             turnover_range: pending.turnover_range,
             company_age: pending.company_age,
             funding_goal: pending.funding_goal ?? null,
+            entity_type: pending.entity_type ?? null,
+            questionnaire_responses: pending.questionnaire_responses ?? {},
+            step2_responses: pending.step2_responses ?? {},
           },
           { onConflict: "user_id" }
         );
@@ -76,14 +76,6 @@ export default async function ProtectedLayout({
             >
               Help
             </Link>
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="text-sm font-medium text-[var(--primary)] hover:underline"
-              >
-                Admin
-              </Link>
-            )}
           </nav>
           {user && (
             <div className="flex items-center gap-4">

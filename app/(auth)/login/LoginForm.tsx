@@ -77,7 +77,7 @@ export default function LoginForm() {
         <div className='w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm'>
           <h1 className='text-xl font-semibold text-[var(--foreground)]'>Check your email</h1>
           <p className='mt-2 text-sm text-[var(--muted)]'>
-            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to sign in.
+            We sent an email to <strong>{email}</strong>. You can <strong>click the sign-in link</strong> in the email, or enter the <strong>6-digit code</strong> below if you received one.
           </p>
           <form onSubmit={handleVerifyCode} className='mt-4 space-y-3'>
             <input

@@ -45,7 +45,38 @@ The email contains **only the 6-digit code** (no link). User enters it on the ap
 - **Login:** User enters email → clicks “Email me a code” → we send OTP → user enters 6-digit code on login page → signed in (verifyOtp).
 - **Eligibility:** User enters email (no email sent) → completes form → we save to `pending_profiles` → user sees “Verify your email to see your schemes” → user clicks “Send verification code” → we send OTP once → user enters 6-digit code on same page → verifyOtp → redirect to dashboard. Pending profile is migrated in protected layout (or via callback for magic-link clicks). This way we use **one email per new user** and avoid sending at email entry, which helps stay within the 2/hour limit.
 
-### Without Send Email Hook
+### Why you might still get a magic link
+
+If you see a **magic link** in the email instead of (or as well as) a 6-digit code, Supabase is sending the **default Magic Link template**. The app supports both: users can **click the link** (they’ll land on `/auth/callback` and then the dashboard) or **enter the 6-digit code** if the email includes it.
+
+To send **only the 6-digit code** (no magic link), use one of the options below.
+
+### Option A: Send Email Hook (code-only email, recommended)
+
+This project includes a **Send Email** Edge Function (`supabase/functions/send-email`) that sends a **code-only** email (no link) via Resend. When the hook is enabled, Supabase does not send the default magic-link email; our function sends the 6-digit code instead.
+
+1. Deploy the function:
+   ```bash
+   supabase functions deploy send-email --no-verify-jwt
+   ```
+2. In the **Supabase Dashboard**, open **Authentication** → **Hooks** (left sidebar). Or go to: `https://supabase.com/dashboard/project/<your-project-ref>/auth/hooks`
+3. Add the **Send Email** hook, choose **HTTP Endpoint**, and fill in:
+   - **Hook URL:** `https://<your-project-ref>.supabase.co/functions/v1/send-email`  
+     Example: if your project ref is `nbcnjqwrlzironvutwld`, use  
+     `https://nbcnjqwrlzironvutwld.supabase.co/functions/v1/send-email`  
+     (You can copy **Project URL** from Project Settings → General and replace the path with `/functions/v1/send-email`.)
+   - **Secret:** Generate or paste a secret in the Hooks UI (often shown as `v1,whsec_...`). You will use this same value in the next step.
+4. Set the **same secret** (and Resend keys) as Edge Function secrets so the function can verify requests:
+   ```bash
+   supabase secrets set RESEND_API_KEY=re_xxx RESEND_FROM_EMAIL=you@yourdomain.com SEND_EMAIL_HOOK_SECRET=v1,whsec_xxxxxxxxxxxx
+   ```
+   Use the exact **SEND_EMAIL_HOOK_SECRET** value from the Hooks UI (e.g. `v1,whsec_...`). The function accepts that format.
+
+**How the secret is used:** When you set a secret in the Dashboard (Authentication → Hooks), Supabase **signs** every POST request it sends to your hook URL with that secret (in an HTTP header). The `send-email` Edge Function reads **SEND_EMAIL_HOOK_SECRET** from its own environment (the secrets you set with `supabase secrets set`). On each request it verifies the signature using that secret. If the value matches what’s in the Dashboard, the request is accepted; if not, the function returns 401 and does not send the email. So the secret in the Dashboard and the secret in the function **must be the same**—copy the value from the Hooks UI into `supabase secrets set SEND_EMAIL_HOOK_SECRET=...`.
+
+After this, auth emails are sent by the function and contain only the 6-digit code.
+
+### Option B: Edit the Magic Link template (no hook)
 
 If you are not using the Send Email Hook:
 
@@ -54,7 +85,7 @@ If you are not using the Send Email Hook:
 3. Include the one-time code in the body, e.g.  
    `Your sign-in code: {{ .Token }}`  
    (You can keep the link as well so both code and link work.)
-4. Save. New sign-in emails will contain the 6-digit code; users can enter it on the login “Check your email” screen.
+4. Save. New sign-in emails will contain the 6-digit code; users can enter it on the “Check your email” screen.
 
 ## Troubleshooting: “Rate limit” after one try
 
