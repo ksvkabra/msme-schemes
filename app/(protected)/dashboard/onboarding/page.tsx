@@ -2,91 +2,86 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  STEP1_QUESTIONS,
+  type Step1FormData,
+} from "@/lib/eligibility/questions";
+import { deriveProfileFromStep1 } from "@/lib/eligibility/derive-profile";
 
-const STEPS = [
-  { key: "business_type", title: "Type of business", options: [
-    { value: "startup", label: "Startup" },
-    { value: "micro", label: "Micro" },
-    { value: "small", label: "Small" },
-    { value: "medium", label: "Medium" },
-  ]},
-  { key: "industry", title: "Industry", options: [
-    { value: "Manufacturing", label: "Manufacturing" },
-    { value: "Services", label: "Services" },
-    { value: "Trading", label: "Trading" },
-    { value: "Technology", label: "Technology" },
-    { value: "Agriculture", label: "Agriculture" },
-    { value: "Other", label: "Other" },
-  ]},
-  { key: "state", title: "State / location", options: [
-    { value: "Maharashtra", label: "Maharashtra" },
-    { value: "Karnataka", label: "Karnataka" },
-    { value: "Gujarat", label: "Gujarat" },
-    { value: "Tamil Nadu", label: "Tamil Nadu" },
-    { value: "Delhi", label: "Delhi" },
-    { value: "Uttar Pradesh", label: "Uttar Pradesh" },
-    { value: "Other", label: "Other" },
-  ]},
-  { key: "company_age", title: "Company age", options: [
-    { value: "0-1", label: "Less than 1 year" },
-    { value: "1-3", label: "1–3 years" },
-    { value: "3-5", label: "3–5 years" },
-    { value: "5-10", label: "5–10 years" },
-    { value: "10+", label: "More than 10 years" },
-  ]},
-  { key: "turnover_range", title: "Turnover range (₹ lakhs)", options: [
-    { value: "0-10", label: "0–10" },
-    { value: "10-50", label: "10–50" },
-    { value: "50-100", label: "50–100" },
-    { value: "100-250", label: "100–250" },
-    { value: "250+", label: "250+" },
-  ]},
-  { key: "funding_goal", title: "Funding goal", options: [
-    { value: "loan", label: "Loan" },
-    { value: "subsidy", label: "Subsidy" },
-    { value: "grant", label: "Grant" },
-    { value: "any", label: "Any" },
-  ]},
-] as const;
-
-type FormData = Record<string, string>;
+const STEP1_LEN = STEP1_QUESTIONS.length;
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState<FormData>({});
+  const [stepIndex, setStepIndex] = useState(0);
+  const [step1Data, setStep1Data] = useState<Partial<Step1FormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const current = STEPS[step];
-  const value = data[current?.key];
+  const current = STEP1_QUESTIONS[stepIndex];
+  const isMulti = current?.multi === true;
+  const maxSel = current?.maxSelections ?? 1;
+  const rawValue = current
+    ? step1Data[current.key as keyof Step1FormData]
+    : undefined;
+  const value =
+    isMulti && Array.isArray(rawValue)
+      ? rawValue
+      : typeof rawValue === "string"
+        ? rawValue
+        : undefined;
+  const selectedArr = isMulti ? (value as string[] | undefined) ?? [] : [];
+  const canProceed =
+    isMulti ? selectedArr.length >= 1 : value !== undefined && value !== "";
 
   function handleSelect(val: string) {
-    setData((prev) => ({ ...prev, [current.key]: val }));
-    if (step < STEPS.length - 1) {
-      setStep((s) => s + 1);
+    if (!current) return;
+    const key = current.key as keyof Step1FormData;
+    if (isMulti) {
+      const arr = selectedArr.includes(val)
+        ? selectedArr.filter((x) => x !== val)
+        : selectedArr.length >= maxSel
+          ? [...selectedArr.slice(1), val]
+          : [...selectedArr, val];
+      setStep1Data((prev) => ({ ...prev, [key]: arr }));
+      return;
+    }
+    setStep1Data((prev) => ({ ...prev, [key]: val }));
+    if (stepIndex < STEP1_LEN - 1) {
+      setStepIndex((i) => i + 1);
     } else {
-      submit({ ...data, [current.key]: val });
+      submit();
     }
   }
 
-  async function submit(final: FormData) {
+  function handleNext() {
+    if (!canProceed) return;
+    if (stepIndex < STEP1_LEN - 1) {
+      setStepIndex((i) => i + 1);
+    } else {
+      submit();
+    }
+  }
+
+  async function submit() {
     setIsSubmitting(true);
+    setError("");
+    const profile = deriveProfileFromStep1(step1Data);
     const res = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        business_type: final.business_type,
-        industry: final.industry,
-        state: final.state,
-        company_age: final.company_age,
-        turnover_range: final.turnover_range,
-        funding_goal: final.funding_goal ?? "any",
+        business_type: profile.business_type,
+        industry: profile.industry,
+        state: profile.state,
+        turnover_range: profile.turnover_range,
+        company_age: profile.company_age,
+        funding_goal: profile.funding_goal ?? "any",
       }),
     });
     setIsSubmitting(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert(j.error ?? "Failed to save");
+      setError(j.error ?? "Failed to save");
       return;
     }
     router.push("/dashboard");
@@ -95,13 +90,15 @@ export default function OnboardingPage() {
 
   if (!current) return null;
 
-  const progress = ((step + 1) / STEPS.length) * 100;
+  const progress = ((stepIndex + 1) / STEP1_LEN) * 100;
 
   return (
     <div className="mx-auto max-w-lg">
       <div className="mb-8">
         <div className="flex justify-between text-sm text-[var(--muted)]">
-          <span>Step {step + 1} of {STEPS.length}</span>
+          <span>
+            Step {stepIndex + 1} of {STEP1_LEN}
+          </span>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--border)]">
           <div
@@ -114,9 +111,11 @@ export default function OnboardingPage() {
       <h1 className="text-2xl font-semibold text-[var(--foreground)]">
         {current.title}
       </h1>
-      <p className="mt-1 text-[var(--muted)]">
-        Choose one — we use this to match you with the right schemes.
-      </p>
+      {(current.subtitle || !isMulti) && (
+        <p className="mt-1 text-[var(--muted)]">
+          {current.subtitle ?? "Choose one — we use this to match you with the right schemes."}
+        </p>
+      )}
 
       <ul className="mt-8 grid gap-3">
         {current.options.map((opt) => (
@@ -126,9 +125,13 @@ export default function OnboardingPage() {
               onClick={() => handleSelect(opt.value)}
               disabled={isSubmitting}
               className={`w-full rounded-xl border-2 px-4 py-3.5 text-left text-base font-medium transition-colors ${
-                value === opt.value
-                  ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
-                  : "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:border-[var(--primary)]/50 hover:bg-[var(--background)]"
+                isMulti
+                  ? selectedArr.includes(opt.value)
+                    ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                    : "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:border-[var(--primary)]/50 hover:bg-[var(--background)]"
+                  : value === opt.value
+                    ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                    : "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:border-[var(--primary)]/50 hover:bg-[var(--background)]"
               }`}
             >
               {opt.label}
@@ -137,18 +140,37 @@ export default function OnboardingPage() {
         ))}
       </ul>
 
-      {step > 0 && (
+      {isMulti && (
+        <>
+          <p className="mt-3 text-sm text-[var(--muted)]">
+            {selectedArr.length} of {maxSel} selected
+          </p>
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={!canProceed || isSubmitting}
+            className="mt-4 w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </>
+      )}
+
+      {error && (
+        <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+      {isSubmitting && (
+        <p className="mt-4 text-sm text-[var(--muted)]">Saving…</p>
+      )}
+
+      {stepIndex > 0 && (
         <button
           type="button"
-          onClick={() => setStep((s) => s - 1)}
+          onClick={() => setStepIndex((s) => s - 1)}
           className="mt-8 text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
         >
           ← Back
         </button>
-      )}
-
-      {isSubmitting && (
-        <p className="mt-4 text-sm text-[var(--muted)]">Saving…</p>
       )}
     </div>
   );

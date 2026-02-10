@@ -1,0 +1,2 @@
+# For scheme import: generate SQL from Excel
+openpyxl>=3.1.0

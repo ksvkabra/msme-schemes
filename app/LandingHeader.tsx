@@ -60,12 +60,12 @@ export function LandingHeader() {
             How it works
           </a>
           <Link
-            href="/login"
+            href="/dashboard"
             className={`text-sm font-semibold transition-opacity hover:opacity-90 ${
               scrolled ? "text-slate-900" : "text-white drop-shadow"
             }`}
           >
-            Log in
+            Dashboard
           </Link>
         </nav>
       </div>
