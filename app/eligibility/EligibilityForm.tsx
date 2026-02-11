@@ -271,28 +271,23 @@ export function EligibilityForm() {
     setPhase('verify');
   }
 
-  // ——— Verify: send OTP only when user requests it (one email per user, after form complete) ———
+  // ——— Verify: send OTP via our API (Resend), then verify and redirect to dashboard ———
   async function handleSendVerificationCode(e: React.FormEvent) {
     e.preventDefault();
     if (sendOtpRef.current) return;
     setError('');
     sendOtpRef.current = true;
     setSendOtpLoading(true);
-    const baseUrl =
-      typeof process.env.NEXT_PUBLIC_APP_URL === 'string' && process.env.NEXT_PUBLIC_APP_URL
-        ? process.env.NEXT_PUBLIC_APP_URL
-        : typeof window !== 'undefined'
-          ? window.location.origin
-          : '';
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}` },
+    const res = await fetch('/api/otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     });
     setSendOtpLoading(false);
     sendOtpRef.current = false;
-    if (err) {
-      const isRateLimit = /rate limit|too many requests/i.test(err.message) || err.message?.includes('rate_limit');
-      setError(isRateLimit ? 'Too many verification attempts. Please wait an hour or check your inbox for an existing code.' : err.message);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json.error ?? 'Failed to send code.');
       return;
     }
     setVerificationCodeSent(true);
@@ -301,24 +296,28 @@ export function EligibilityForm() {
   async function handleVerifyCodeAndContinue(e: React.FormEvent) {
     e.preventDefault();
     const token = verifyCode.replace(/\s/g, '').trim();
-    if (!token) {
+    if (!token || token.length !== 6) {
       setError('Please enter the 6-digit code.');
       return;
     }
     setError('');
     setVerifying(true);
-    const { error: err } = await supabase.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token,
-      type: 'email',
+    const res = await fetch('/api/otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), code: token, next: '/dashboard' }),
     });
+    const json = await res.json().catch(() => ({}));
     setVerifying(false);
-    if (err) {
-      setError(err.message);
+    if (!res.ok) {
+      setError(json.error ?? 'Verification failed.');
       return;
     }
-    router.push('/dashboard');
-    router.refresh();
+    if (json.redirect_url) {
+      window.location.href = json.redirect_url;
+      return;
+    }
+    setError('Something went wrong. Please try again.');
   }
 
   // ——— Verify phase UI ———
@@ -359,7 +358,7 @@ export function EligibilityForm() {
         <div className='w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
           <h1 className='text-xl font-semibold text-[var(--foreground)]'>Check your email</h1>
           <p className='mt-3 text-sm text-[var(--muted)]'>
-            We sent an email to <strong>{email}</strong>. You can <strong>click the sign-in link</strong> in the email to see your schemes, or if you received a <strong>6-digit code</strong>, enter it below.
+            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to see your matched schemes.
           </p>
           <form onSubmit={handleVerifyCodeAndContinue} className='mt-6 space-y-3'>
             <input

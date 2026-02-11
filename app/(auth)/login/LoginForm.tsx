@@ -2,8 +2,6 @@
 
 import { useState, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { useSearchParams } from 'next/navigation';
 
 export default function LoginForm() {
@@ -14,11 +12,8 @@ export default function LoginForm() {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
   const sendingRef = useRef(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') ?? '/dashboard';
-
-  const supabase = createClient();
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
@@ -26,23 +21,16 @@ export default function LoginForm() {
     setError('');
     sendingRef.current = true;
     setLoading(true);
-    const baseUrl =
-      typeof process.env.NEXT_PUBLIC_APP_URL === 'string' && process.env.NEXT_PUBLIC_APP_URL
-        ? process.env.NEXT_PUBLIC_APP_URL
-        : window.location.origin;
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(next)}` },
+    const res = await fetch('/api/otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     });
     setLoading(false);
     sendingRef.current = false;
-    if (err) {
-      const isRateLimit = /rate limit|too many requests/i.test(err.message) || err.message?.includes('rate_limit');
-      setError(
-        isRateLimit
-          ? 'Too many sign-in attempts. Please wait an hour or check your inbox for an existing code.'
-          : err.message
-      );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json.error ?? 'Failed to send code.');
       return;
     }
     setOtpSent(true);
@@ -51,24 +39,28 @@ export default function LoginForm() {
   async function handleVerifyCode(e: React.FormEvent) {
     e.preventDefault();
     const token = code.replace(/\s/g, '').trim();
-    if (!token) {
+    if (!token || token.length !== 6) {
       setError('Please enter the 6-digit code.');
       return;
     }
     setError('');
     setVerifying(true);
-    const { error: err } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token,
-      type: 'email',
+    const res = await fetch('/api/otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), code: token, next }),
     });
+    const json = await res.json().catch(() => ({}));
     setVerifying(false);
-    if (err) {
-      setError(err.message);
+    if (!res.ok) {
+      setError(json.error ?? 'Verification failed.');
       return;
     }
-    router.push(next);
-    router.refresh();
+    if (json.redirect_url) {
+      window.location.href = json.redirect_url;
+      return;
+    }
+    setError('Something went wrong. Please try again.');
   }
 
   if (otpSent) {
@@ -77,7 +69,7 @@ export default function LoginForm() {
         <div className='w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm'>
           <h1 className='text-xl font-semibold text-[var(--foreground)]'>Check your email</h1>
           <p className='mt-2 text-sm text-[var(--muted)]'>
-            We sent an email to <strong>{email}</strong>. You can <strong>click the sign-in link</strong> in the email, or enter the <strong>6-digit code</strong> below if you received one.
+            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to sign in.
           </p>
           <form onSubmit={handleVerifyCode} className='mt-4 space-y-3'>
             <input

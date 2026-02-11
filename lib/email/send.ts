@@ -30,6 +30,17 @@ export async function sendEmail({
   }
 }
 
+/** OTP for sign-in / email verification (sent via Resend, no Supabase auth email). */
+export function otpEmailHtml(code: string): string {
+  return `
+    <h2 style="margin-top: 0;">Sign in</h2>
+    <p>Use this one-time code to sign in. No password needed.</p>
+    <p style="margin: 16px 0 8px;">Your 6-digit code:</p>
+    <p style="font-size: 24px; letter-spacing: 4px; font-weight: 600;">${code}</p>
+    <p style="color: #6b7280; font-size: 14px;">If you didn't request this, you can ignore this email.</p>
+  `.trim();
+}
+
 /** After onboarding: send eligibility summary. */
 export function eligibilitySummaryHtml(
   userName: string,

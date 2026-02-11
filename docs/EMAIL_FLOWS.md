@@ -1,48 +1,24 @@
 # Email flows
 
-There are **two separate** email flows in the app. It’s easy to mix them up.
+## 1. Sign-in / verification (OTP via Resend)
 
----
+We use a **simple custom OTP flow**: no Supabase auth emails, no magic links, no Edge Functions.
 
-## 1. Auth email (login and eligibility verification)
+- **Storage:** OTPs are stored in the `otps` table (email, code, expires_at). Only the backend (service role) can read/write.
+- **Sending:** When the user requests a code (login or eligibility verify step), `POST /api/otp/send` generates a 6-digit code, saves it to `otps`, and sends the email via **Resend** from the Next.js app.
+- **Verification:** When the user submits the code, `POST /api/otp/verify` checks the code against `otps`, then uses Supabase Auth **admin** to create the user (if needed) and generate a magic link. The API returns the link; the client redirects the user to it so they land on `/auth/callback` with a session. No email is sent by Supabase.
 
-**Purpose:** Sign the user in or verify email ownership. Prove they own the email address.
+**Flow:**
 
-**Rate-limit-friendly design:** We send **no email** when the user first enters their email. We only send one auth email **after** they have completed the form and explicitly request verification. That keeps usage to **one email per new user** and avoids hitting Supabase’s 2-emails-per-hour limit during the flow.
+1. **Login:** User enters email → "Email me a code" → `POST /api/otp/send` → Resend sends 6-digit code. User enters code → `POST /api/otp/verify` → redirect to Supabase magic link → `/auth/callback` → dashboard.
+2. **Eligibility:** User enters email (no email) → completes form → data saved to `pending_profiles` → "Verify your email" → "Send verification code" → `POST /api/otp/send` → Resend sends code. User enters code → `POST /api/otp/verify` → redirect → callback migrates `pending_profiles` → dashboard.
 
-### Eligibility flow (new users)
-
-1. User enters email on `/eligibility` → **no email sent**.
-2. User completes the questionnaire; we save their profile to `pending_profiles` (keyed by email).
-3. User lands on “Verify your email” and clicks **“Send verification code”** → **one email sent** (Supabase OTP).
-4. User enters the 6-digit code → we call `verifyOtp` → session created → redirect to `/dashboard`. Protected layout migrates `pending_profiles` → `business_profiles`.
-
-So: one auth email per new user, sent only when they choose to verify and see their schemes.
-
-### Login (returning users)
-
-**Where:** `/login` → user enters email → clicks “Email me a code” → Supabase sends one email.
-
-**What the user does:** Enter the 6-digit code from the email on the login page; we call `verifyOtp` and redirect to the dashboard. The email can also contain a magic link (if the template includes it); clicking the link goes to `/auth/callback?code=...&next=...`, which exchanges the code for a session and redirects.
-
-**Important:** The link in the email (if used) must point at your app’s URL. We use:
-
-- **`NEXT_PUBLIC_APP_URL`** in env (if set) as the base for `emailRedirectTo`.
-- If not set, we use `window.location.origin` (fine for local dev; in production set `NEXT_PUBLIC_APP_URL` to your real site URL).
-
-**Rate limits:** Supabase limits auth emails (e.g. 2 per hour with built-in email). The app shows a friendly message when the limit is hit. To raise limits, use custom SMTP and/or see Supabase Dashboard → Authentication → Rate Limits.
+**Env:** `RESEND_API_KEY` and optionally `RESEND_FROM_EMAIL`. No Supabase Auth hook or SMTP needed.
 
 ---
 
 ## 2. Eligibility summary email
 
-**Purpose:** Send the user a summary of their scheme matches (after they’re already logged in). Not for confirming email or logging in.
+**Purpose:** Send the user a summary of their scheme matches (after they’re already logged in).
 
-**Where:** `POST /api/send-email` with `{ type: "eligibility_summary", to?: "optional@email.com" }`. If `to` is omitted, we send to the logged-in user’s email.
-
-**Current state:** The API exists and works. There is **no UI yet** that calls it (no “Email me my summary” or eligibility-check email input on the dashboard). So:
-
-- The **only** email input on the login page is for **auth** (step 1 above), not for “send my eligibility here.”
-- A future “Email me my summary” (or “Send results to this email”) on the dashboard would call this API; that would be a separate, optional feature.
-
-**Summary:** Eligibility summary is a separate feature. Login email = auth only. Eligibility email = optional “send my results,” not yet wired in the UI.
+**Where:** `POST /api/send-email` with `{ type: "eligibility_summary", to?: "optional@email.com" }`. Uses Resend. No UI wired yet.
