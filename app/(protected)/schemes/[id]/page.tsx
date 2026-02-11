@@ -154,7 +154,7 @@ export default async function SchemeDetailPage({
           <p className="mt-6 text-sm text-[var(--muted)]">
             Complete your{" "}
             <Link
-              href="/dashboard/onboarding"
+              href="/eligibility"
               className="text-[var(--primary)] underline"
             >
               business profile

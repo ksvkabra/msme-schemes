@@ -31,10 +31,10 @@ export default async function DashboardPage() {
           Add your business details to see matching schemes.
         </p>
         <Link
-          href="/dashboard/onboarding"
+          href="/eligibility"
           className="mt-4 inline-block rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] hover:opacity-90"
         >
-          Go to onboarding
+          Complete eligibility
         </Link>
       </div>
     );

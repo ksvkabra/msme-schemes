@@ -20,7 +20,7 @@ export async function GET() {
 
   if (profileError || !profile) {
     return NextResponse.json(
-      { error: "Business profile not found. Complete onboarding first." },
+      { error: "Business profile not found. Complete eligibility first." },
       { status: 404 }
     );
   }

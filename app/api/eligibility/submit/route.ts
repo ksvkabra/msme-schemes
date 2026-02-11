@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -11,9 +12,9 @@ const derivedSchema = z.object({
   funding_goal: z.enum(["loan", "subsidy", "grant", "any"]).optional(),
 });
 
-/** New payload: email + entityType + startup/msme flow data + derived profile. Optional step2. */
+/** Payload: optional email (required when not logged in); entityType + startup/msme + derived. Optional step2. */
 const newBodySchema = z.object({
-  email: z.string().email(),
+  email: z.string().email().optional(),
   entityType: z.enum(["startup", "msme"]).optional(),
   startup: z.record(z.string(), z.unknown()).optional(),
   msme: z.record(z.string(), z.unknown()).optional(),
@@ -33,12 +34,17 @@ const legacyBodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const body = await request.json();
   const newParsed = newBodySchema.safeParse(body);
   const legacyParsed = legacyBodySchema.safeParse(body);
 
   let payload: {
-    email: string;
+    email: string | null;
     business_type: "micro" | "small" | "medium" | "startup";
     industry: string;
     state: string;
@@ -59,8 +65,15 @@ export async function POST(request: Request) {
         : data.entityType === "msme"
           ? (data.msme as Record<string, unknown>)
           : undefined;
+    const emailVal = data.email?.trim().toLowerCase() ?? user?.email?.trim().toLowerCase() ?? null;
+    if (!user && !emailVal) {
+      return NextResponse.json(
+        { error: "Email is required when not logged in." },
+        { status: 400 }
+      );
+    }
     payload = {
-      email: data.email.trim().toLowerCase(),
+      email: emailVal ?? null,
       business_type: d.business_type,
       industry: d.industry,
       state: d.state,
@@ -92,6 +105,36 @@ export async function POST(request: Request) {
     );
   }
 
+  // Logged-in: upsert business_profiles (single eligibility + onboarding flow)
+  if (user) {
+    const profileRow: Record<string, unknown> = {
+      user_id: user.id,
+      business_type: payload.business_type,
+      industry: payload.industry,
+      state: payload.state,
+      turnover_range: payload.turnover_range,
+      company_age: payload.company_age,
+      funding_goal: payload.funding_goal,
+    };
+    if (payload.entity_type != null) profileRow.entity_type = payload.entity_type;
+    if (payload.questionnaire_responses != null) profileRow.questionnaire_responses = payload.questionnaire_responses;
+    if (payload.step2_responses != null) profileRow.step2_responses = payload.step2_responses;
+    const { error: profileError } = await supabase.from("business_profiles").upsert(profileRow, {
+      onConflict: "user_id",
+    });
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // Not logged in: save to pending_profiles (requires email)
+  if (!payload.email) {
+    return NextResponse.json(
+      { error: "Email is required when not logged in." },
+      { status: 400 }
+    );
+  }
   const db = createServiceRoleClient();
   const row: Record<string, unknown> = {
     email: payload.email,

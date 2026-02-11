@@ -76,6 +76,11 @@ This project includes a **Send Email** Edge Function (`supabase/functions/send-e
 
 After this, auth emails are sent by the function and contain only the 6-digit code.
 
+**“Failed to reach hook within 5 seconds”:** Supabase requires the hook to respond within 5 seconds. Common causes:
+- **Cold start:** The first request to the Edge Function can take 3–5+ seconds while dependencies load (esm.sh, Resend). Later requests are faster. **Workaround:** “Warm” the function by calling it once (e.g. send a test sign-in code, or `curl -X POST -d '{}' -H 'Content-Type: application/json' 'https://<project-ref>.supabase.co/functions/v1/send-email'`); the first call may fail or timeout, the next one should succeed.
+- **Wrong URL:** Confirm the hook URL is exactly `https://<project-ref>.supabase.co/functions/v1/send-email` (no trailing slash, correct project ref).
+- **Resend slow:** The function now returns 503 if it can’t finish within 4 seconds so Supabase gets a response instead of a timeout. Retry the sign-in.
+
 ### Option B: Edit the Magic Link template (no hook)
 
 If you are not using the Send Email Hook:

@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment -- Deno Edge Function; URL/npm imports and Deno globals are resolved at runtime. */
 // @ts-nocheck
 // Supabase Auth "Send Email" hook: receive auth email payload from Supabase,
-// verify webhook, then send the email via Resend. This bypasses the built-in
-// 2/hour rate limit; Resend handles delivery and your own limits apply.
+// verify webhook, then send the email via Resend. Must respond within 5s.
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 import { Resend } from "npm:resend@4.0.0";
 
@@ -12,6 +11,16 @@ const fromEmail =
 // Same secret as in Dashboard → Authentication → Hooks (Send Email). Set via: supabase secrets set SEND_EMAIL_HOOK_SECRET=...
 const hookSecretRaw = Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "";
 const hookSecret = hookSecretRaw.replace(/^v1,whsec_/, "");
+
+/** Supabase requires the hook to respond within 5 seconds. */
+const HOOK_TIMEOUT_MS = 4000;
+
+function timeoutResponse(status: number, message: string) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 interface HookPayload {
   user: { email?: string; email_new?: string };
@@ -45,11 +54,7 @@ function htmlEmail(token: string): string {
 `.trim();
 }
 
-Deno.serve(async (req) => {
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
-  }
-
+async function handleHook(req: Request): Promise<Response> {
   const payload = await req.text();
   const headers = Object.fromEntries(req.headers.entries());
   const wh = new Webhook(hookSecret);
@@ -76,7 +81,6 @@ Deno.serve(async (req) => {
 
   const { token, token_hash, token_new, token_hash_new } = email_data;
 
-  // Email change can send to two addresses; we send one email per recipient (OTP only).
   const emailsToSend: { to: string; token: string }[] = [];
   if (token_hash && token) {
     emailsToSend.push({ to, token });
@@ -113,4 +117,24 @@ Deno.serve(async (req) => {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+Deno.serve(async (req) => {
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  const timeoutPromise = new Promise<Response>((_, reject) => {
+    setTimeout(() => reject(new Error("Hook timeout")), HOOK_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([handleHook(req), timeoutPromise]);
+  } catch (e) {
+    if (e instanceof Error && e.message === "Hook timeout") {
+      console.error("Send email hook exceeded", HOOK_TIMEOUT_MS, "ms");
+      return timeoutResponse(503, "Hook timeout; try again.");
+    }
+    throw e;
+  }
 });

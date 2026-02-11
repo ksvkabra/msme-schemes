@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -49,6 +49,15 @@ export function EligibilityForm() {
   const sendOtpRef = useRef(false);
   const router = useRouter();
   const supabase = createClient();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsLoggedIn(!!user);
+      if (user?.email && !email) setEmail(user.email);
+      if (user && phase === 'email') setPhase('gateway');
+    });
+  }, []);
 
   const flowQuestions = entityType === 'startup' ? STARTUP_QUESTIONS : MSME_QUESTIONS;
   const flowLen = entityType === 'startup' ? STARTUP_LEN : MSME_LEN;
@@ -181,6 +190,39 @@ export function EligibilityForm() {
   function handleContinueFullQuestionnaire() {
     setPhase('step2');
     setStep2Index(0);
+  }
+
+  /** Logged-in: save profile to business_profiles and go to dashboard (single eligibility flow). */
+  async function handleSaveAndGoToDashboard() {
+    if (!entityType) return;
+    setSubmitting(true);
+    setError('');
+    const profile = getDerivedProfile();
+    const res = await fetch('/api/eligibility/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entityType,
+        startup: entityType === 'startup' ? startupData : undefined,
+        msme: entityType === 'msme' ? msmeData : undefined,
+        derived: {
+          business_type: profile.business_type,
+          industry: profile.industry,
+          state: profile.state,
+          turnover_range: profile.turnover_range,
+          company_age: profile.company_age,
+          funding_goal: profile.funding_goal,
+        },
+      }),
+    });
+    setSubmitting(false);
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setError(j.error ?? 'Failed to save. Please try again.');
+      return;
+    }
+    router.push('/dashboard');
+    router.refresh();
   }
 
   // ——— Step 2: extended questions ———
@@ -463,17 +505,29 @@ export function EligibilityForm() {
           </ul>
           {matches.length > 0 && (
             <p className='mt-4 text-sm text-[var(--muted)]'>
-              We&apos;ve found {matches.length} scheme{matches.length !== 1 ? 's' : ''} matching your profile. Log in to see them.
+              We&apos;ve found {matches.length} scheme{matches.length !== 1 ? 's' : ''} matching your profile.
+              {!isLoggedIn && ' Log in to see them.'}
             </p>
           )}
           <div className='mt-6 flex flex-col gap-3'>
-            <button
-              type='button'
-              onClick={() => setPhase('verify')}
-              className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90'
-            >
-              Send code to {email} to see my schemes
-            </button>
+            {isLoggedIn ? (
+              <button
+                type='button'
+                onClick={handleSaveAndGoToDashboard}
+                disabled={submitting}
+                className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50'
+              >
+                {submitting ? 'Saving…' : 'Save and see my schemes'}
+              </button>
+            ) : (
+              <button
+                type='button'
+                onClick={() => setPhase('verify')}
+                className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90'
+              >
+                Send code to {email} to see my schemes
+              </button>
+            )}
             <button
               type='button'
               onClick={handleContinueFullQuestionnaire}
@@ -482,6 +536,7 @@ export function EligibilityForm() {
               Continue with full questionnaire
             </button>
           </div>
+          {error && <p className='mt-4 text-sm text-red-600 dark:text-red-400'>{error}</p>}
           <p className='mt-4 text-center text-sm text-[var(--muted)]'>
             <Link href='/' className='hover:underline'>
               Back to home
