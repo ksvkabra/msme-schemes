@@ -3,6 +3,9 @@
 :root {
   --background: #f1f5f9;
   --foreground: #0f172a;
+  /* Fonts: system stack (no build-time fetch; Geist-like) */
+  --font-geist-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-geist-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   /* Primary: blue for trust, government, credibility (US/UK gov design systems) */
   --primary: #1d4ed8;
   --primary-foreground: #ffffff;
