@@ -38,18 +38,25 @@ export async function POST(request: Request) {
   await db.from("otps").delete().eq("id", row.id);
 
   const supabase = createServiceRoleClient();
-  const baseUrl =
+  let baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (request.headers.get("x-forwarded-host")
       ? `https://${request.headers.get("x-forwarded-host")}`
       : "http://localhost:3000");
+  // Use http for localhost (dev server has no SSL; https://localhost causes ERR_SSL_PROTOCOL_ERROR)
+  if (baseUrl.startsWith("https://localhost") || baseUrl.startsWith("https://127.0.0.1")) {
+    baseUrl = baseUrl.replace(/^https:/, "http:");
+  }
   const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent(next)}`;
 
   const { error: createError } = await supabase.auth.admin.createUser({
     email,
     email_confirm: true,
   });
-  if (createError && !/already registered|already exists/i.test(createError.message)) {
+  // "already registered" / "already been registered" / "already exists" = user exists; continue to generate magic link
+  const isExistingUser =
+    /already (been )?registered|already exists/i.test(createError?.message ?? "");
+  if (createError && !isExistingUser) {
     return NextResponse.json({ error: createError.message }, { status: 500 });
   }
 

@@ -19,6 +19,18 @@ export async function POST(request: Request) {
   }
   const email = parsed.data.email.trim().toLowerCase();
 
+  // Resend free tier only allows sending to your account email until you verify a domain.
+  // Set RESEND_DEV_TO to that email (e.g. work.keshavkabra@gmail.com) to test without a domain.
+  const devOnlyTo = process.env.RESEND_DEV_TO?.trim().toLowerCase();
+  if (devOnlyTo && email !== devOnlyTo) {
+    return NextResponse.json(
+      {
+        error: `During setup, sign-in emails can only be sent to the test address. Use ${devOnlyTo} to try the flow, or verify a domain at resend.com/domains to send to any email.`,
+      },
+      { status: 400 }
+    );
+  }
+
   const db = createServiceRoleClient();
 
   // Rate limit: one OTP per email per RATE_LIMIT_SECONDS
