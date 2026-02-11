@@ -77,11 +77,27 @@ export function EligibilityForm() {
     return deriveMSMEProfile(msmeData);
   }
 
-  // ——— Email ———
-  function handleEmailNext(e: React.FormEvent) {
+  // ——— Email: check if existing user → verify & login; else → gateway ———
+  async function handleEmailNext(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (!email.trim()) return;
+    setSubmitting(true);
+    const res = await fetch('/api/eligibility/check-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    });
+    setSubmitting(false);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json.error ?? 'Could not check email. Please try again.');
+      return;
+    }
+    if (json.exists) {
+      setPhase('verify');
+      return;
+    }
     setPhase('gateway');
   }
 
@@ -320,16 +336,27 @@ export function EligibilityForm() {
     setError('Something went wrong. Please try again.');
   }
 
-  // ——— Verify phase UI ———
+  // ——— Verify phase UI (returning user = came from email check with exists; else saved profile) ———
+  const isReturningUserVerify = phase === 'verify' && !entityType;
   if (phase === 'verify') {
     if (!verificationCodeSent) {
       return (
         <div className='flex min-h-screen items-center justify-center bg-[var(--background)] p-4'>
           <div className='w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
-            <h1 className='text-xl font-semibold text-[var(--foreground)]'>Verify your email</h1>
+            <h1 className='text-xl font-semibold text-[var(--foreground)]'>
+              {isReturningUserVerify ? 'Log in to your account' : 'Verify your email'}
+            </h1>
             <p className='mt-3 text-sm text-[var(--muted)]'>
-              We&apos;ve saved your profile for <strong>{email}</strong>. To see your matched schemes, we need to verify your email. Click
-              below to receive a one-time code.
+              {isReturningUserVerify ? (
+                <>
+                  This email is already registered. We&apos;ll send a one-time code to <strong>{email}</strong> so you can log in and see your last application.
+                </>
+              ) : (
+                <>
+                  We&apos;ve saved your profile for <strong>{email}</strong>. To see your matched schemes, we need to verify your email. Click
+                  below to receive a one-time code.
+                </>
+              )}
             </p>
             <form onSubmit={handleSendVerificationCode} className='mt-6 space-y-3'>
               <button
@@ -337,11 +364,18 @@ export function EligibilityForm() {
                 disabled={sendOtpLoading}
                 className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50'
               >
-                {sendOtpLoading ? 'Sending…' : 'Send verification code'}
+                {sendOtpLoading ? 'Sending…' : isReturningUserVerify ? 'Send login code' : 'Send verification code'}
               </button>
               {error && <p className='text-sm text-red-600 dark:text-red-400'>{error}</p>}
             </form>
             <div className='mt-6 flex flex-col gap-3'>
+              <button
+                type='button'
+                onClick={() => { setPhase('email'); setVerificationCodeSent(false); setVerifyCode(''); setError(''); }}
+                className='w-full rounded-lg border border-[var(--border)] py-2.5 text-center text-sm font-medium text-[var(--foreground)] hover:bg-[var(--background)]'
+              >
+                Use a different email
+              </button>
               <Link
                 href='/'
                 className='w-full rounded-lg border border-[var(--border)] py-2.5 text-center text-sm font-medium text-[var(--foreground)] hover:bg-[var(--background)]'
@@ -358,7 +392,7 @@ export function EligibilityForm() {
         <div className='w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm'>
           <h1 className='text-xl font-semibold text-[var(--foreground)]'>Check your email</h1>
           <p className='mt-3 text-sm text-[var(--muted)]'>
-            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to see your matched schemes.
+            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to {isReturningUserVerify ? 'log in and see your application' : 'see your matched schemes'}.
           </p>
           <form onSubmit={handleVerifyCodeAndContinue} className='mt-6 space-y-3'>
             <input
@@ -377,7 +411,7 @@ export function EligibilityForm() {
               disabled={verifying || verifyCode.length !== 6}
               className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50'
             >
-              {verifying ? 'Verifying…' : 'Verify and see schemes'}
+              {verifying ? 'Verifying…' : isReturningUserVerify ? 'Log in' : 'Verify and see schemes'}
             </button>
           </form>
           <button
@@ -421,9 +455,10 @@ export function EligibilityForm() {
             {error && <p className='text-sm text-red-600 dark:text-red-400'>{error}</p>}
             <button
               type='submit'
-              className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90'
+              disabled={submitting}
+              className='w-full rounded-lg bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-foreground)] hover:opacity-90 disabled:opacity-50'
             >
-              Continue
+              {submitting ? 'Checking…' : 'Continue'}
             </button>
           </form>
           <p className='mt-4 text-center text-sm text-[var(--muted)]'>

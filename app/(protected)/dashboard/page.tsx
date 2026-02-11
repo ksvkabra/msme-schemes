@@ -79,12 +79,22 @@ export default async function DashboardPage() {
 
       {questionnaireRows.length > 0 && (
         <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
-            Your questionnaire & profile
-          </h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Details you shared about your startup or MSME.
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
+                Your questionnaire & profile
+              </h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Details you shared about your startup or MSME.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/edit"
+              className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--background)]"
+            >
+              Edit profile
+            </Link>
+          </div>
           <ul className="mt-4 space-y-3">
             {questionnaireRows.map((row, i) => (
               <li key={i} className="flex flex-col gap-0.5 border-b border-[var(--border)] pb-3 last:border-0 last:pb-0">
